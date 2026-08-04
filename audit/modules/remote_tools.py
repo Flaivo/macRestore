@@ -1,0 +1,84 @@
+from pathlib import Path
+import shutil
+
+from shared.inventory import save_inventory
+
+PLUGIN = {
+    "name": "remote_tools",
+    "description": "Backup configurazioni tool remoti (FileZilla, Termius, AnyDesk, ecc.)",
+    "requires_password": False,
+    "has_restore": True,
+    "restore_items": [
+        "filezilla",
+        "termius",
+        "teamviewer",
+        "anydesk"
+    ]
+}
+
+def backup(context):
+    result = {
+        "backed_up_tools": []
+    }
+
+    backup_base_dir = context.config.parent / "files" / "remote_tools"
+
+    # ============================================================
+    # PERCORSI TOOL REMOTI
+    # Aggiungi qui eventuali altri tool in futuro
+    # ============================================================
+    tools_paths = {
+        "FileZilla": [
+            Path.home() / ".config" / "filezilla"
+        ],
+        "Termius": [
+            Path.home() / "Library" / "Application Support" / "Termius"
+        ],
+        "TeamViewer": [
+            Path.home() / "Library" / "Preferences" / "com.teamviewer.TeamViewer.plist",
+            Path.home() / "Library" / "Application Support" / "TeamViewer"
+        ],
+        "AnyDesk": [
+            Path.home() / ".anydesk",
+            Path.home() / "Library" / "Preferences" / "com.philandro.anydesk.plist"
+        ]
+    }
+
+    for tool_name, paths in tools_paths.items():
+        tool_backed_up = False
+        tool_dest_dir = backup_base_dir / tool_name.lower()
+
+        for p in paths:
+            if p.exists():
+                tool_dest_dir.mkdir(parents=True, exist_ok=True)
+                
+                if p.is_dir():
+                    # Evitiamo di copiare cartelle di cache o log pesanti
+                    def ignore_caches(dir_path, contents):
+                        return [c for c in contents if "Cache" in c or "cache" in c or "Logs" in c]
+                        
+                    dest_path = tool_dest_dir / p.name
+                    if dest_path.exists():
+                        shutil.rmtree(dest_path)
+                    
+                    shutil.copytree(p, dest_path, ignore=ignore_caches)
+                    print(f"Copiata cartella {tool_name}: {p.name}")
+                    tool_backed_up = True
+                else:
+                    shutil.copy2(p, tool_dest_dir / p.name)
+                    print(f"Copiato file {tool_name}: {p.name}")
+                    tool_backed_up = True
+
+        if tool_backed_up:
+            result["backed_up_tools"].append(tool_name)
+
+    if hasattr(context, 'register_artifact') and result["backed_up_tools"]:
+        context.register_artifact(backup_base_dir)
+
+    # ============================================================
+    # SALVATAGGIO INVENTARIO JSON
+    # ============================================================
+    inventory_file = save_inventory(context, "remote_tools", result)
+    print(f"Creato: {inventory_file}")
+
+    return result

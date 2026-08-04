@@ -1,0 +1,37 @@
+.DS_Store
+
+__pycache__/
+*.py[cod]
+
+.env
+
+*.log
+
+# Dati generati localmente: non devono finire nella repository pubblica
+inventory/*.json
+backups/
+audit_output/
+restore_output/
+
+# File di configurazione e credenziali comuni
+.env.*
+!.env.example
+*.pem
+*.key
+*.keychain
+*.keychain-db
+*.sqlite
+*.sqlite3
+*.db
+*.backup
+*.backup.tmp
+
+# File generati dagli editor e dal sistema operativo
+.idea/
+.vscode/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Mantieni solo il placeholder della cartella backup
+!backups/.gitkeep
