@@ -359,3 +359,6 @@ flowchart LR
     Quality --> Docs["Update README"]
     Docs --> PR["Open pull request"]
 ```
+
+<img width="120" height="72" alt="JimmoWasSmall" src="https://github.com/user-attachments/assets/3ae79e19-f922-4b0e-9135-56e4b83602bc" />
+
