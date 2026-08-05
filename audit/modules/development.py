@@ -8,7 +8,7 @@ from shared.filesystem import copy_file
 
 PLUGIN = {
     "name": "development",
-    "description": "Ambiente sviluppo macOS",
+    "description": "macOS development environment",
     "requires_password": False,
     "has_restore": True,
     "restore_items": [
@@ -155,5 +155,5 @@ def backup(context):
 
 
     print(
-        "Ambiente sviluppo rilevato"
+        "Development environment detected"
     )

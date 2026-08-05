@@ -3,27 +3,27 @@ def print_verification(result):
     if result["valid"]:
 
         print()
-        print("Backup integro ✓")
+        print("[OK] Backup is valid")
 
     else:
 
         print()
-        print("Backup non valido ✗")
+        print("[ERROR] Backup is invalid")
 
 
     print()
 
 
     if result.get("error"):
-        print("Errore:", result["error"])
+        print("Error:", result["error"])
         return
 
     for item in result.get("files", []):
 
-        symbol = "✓"
+        symbol = "[OK]"
 
         if item["status"] != "ok":
-            symbol = "✗"
+            symbol = "[ERROR]"
 
 
         print(

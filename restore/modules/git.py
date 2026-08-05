@@ -3,35 +3,35 @@ from pathlib import Path
 
 PLUGIN = {
     "name": "git",
-    "description": "Ripristina le configurazioni globali di Git (.gitconfig)"
+    "description": "Restore global Git configurations (.gitconfig)"
 }
 
 def restore(context):
-    # In fase di Audit, git viene salvato in backup_config/git/gitconfig
+    # During Audit, git is saved in backup_config/git/gitconfig
     source_file = context.config_dir / "git" / "gitconfig"
     dest_file = Path.home() / ".gitconfig"
 
     if not source_file.exists():
-        print("  ⏭️  Nessun .gitconfig trovato nel backup, salto.")
+        print('  [SKIP] No .gitconfig found in backup, skipping.')
         return
 
-    # LOGICA DRY-RUN
+    # DRY-RUN logic
     if context.dry_run:
-        print(f"  [DRY-RUN] Copierei: {source_file}")
-        print(f"  [DRY-RUN] Verso:    {dest_file}")
+        print(f'  [DRY-RUN] Would copy: {source_file}')
+        print(f'  [DRY-RUN] To:         {dest_file}')
         if dest_file.exists():
-            print(f"  [DRY-RUN] (Il .gitconfig esistente verrebbe sovrascritto)")
+            print('  [DRY-RUN] (The existing .gitconfig would be overwritten)')
         return
 
-    # LOGICA REALE
+    # REAL logic
     try:
         if dest_file.exists():
             backup_esistente = Path.home() / ".gitconfig.pre-restore"
             shutil.copy2(dest_file, backup_esistente)
-            print(f"  💾 Backup del .gitconfig esistente creato in {backup_esistente.name}")
+        print(f'  [NOTE] Backup of existing .gitconfig created at {backup_esistente.name}')
 
         shutil.copy2(source_file, dest_file)
-        print(f"  ✅ .gitconfig ripristinato con successo in {dest_file}")
+        print(f'  [OK] .gitconfig successfully restored to {dest_file}')
 
     except Exception as e:
-        print(f"  ❌ Errore nel ripristino di Git: {e}")
+        print(f'  [ERROR] Error restoring Git: {e}')

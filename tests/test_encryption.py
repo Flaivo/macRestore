@@ -32,7 +32,7 @@ def test_encrypted_backup_rejects_wrong_password(tmp_path: Path):
     encrypted = tmp_path / "backup.backup"
     encrypt_backup_directory(source, encrypted, "Correct horse1!")
 
-    with pytest.raises(ValueError, match="Password errata"):
+    with pytest.raises(ValueError, match="Incorrect password"):
         with decrypted_backup(encrypted, "Wrong password2!"):
             pass
 

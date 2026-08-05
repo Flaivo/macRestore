@@ -10,7 +10,7 @@ from shared.inventory import save_inventory
 
 PLUGIN = {
     "name": "mysql",
-    "description": "Backup database MySQL locale",
+    "description": "Backup local MySQL databases",
     "requires_password": True,
     "has_restore": True,
     "restore_items": [
@@ -174,26 +174,26 @@ def mysql_password():
     print()
 
     print(
-        "Connessione MySQL locale."
+        "Local MySQL connection."
     )
 
     print(
-        "Inserire password ROOT MYSQL."
+        "Enter the MySQL root password."
     )
 
     print(
-        "Non è la password del Mac."
+        "This is not your Mac password."
     )
 
     print(
-        "La password non viene salvata."
+        "The password is not saved."
     )
 
     print()
 
 
     return getpass.getpass(
-        "Password ROOT MYSQL: "
+        "MySQL root password: "
     )
 
 
@@ -224,7 +224,7 @@ def get_databases(mysql, password):
 
     if result["returncode"]:
         raise RuntimeError(
-            f"Impossibile elencare i database MySQL: {result['stderr']}"
+            f"Unable to list MySQL databases: {result['stderr']}"
         )
 
 
@@ -266,7 +266,7 @@ def export_users(mysql,password):
 
     if result.returncode != 0:
         raise RuntimeError(
-            f"Impossibile esportare gli utenti MySQL: {result.stderr.strip()}"
+            f"Unable to export MySQL users: {result.stderr.strip()}"
         )
 
     return result.stdout.strip()
@@ -394,7 +394,7 @@ def backup(context):
 
     if not password:
 
-        data["error"] = "Password non fornita"
+        data["error"] = "Password not provided"
 
         save_inventory(
             context,
@@ -494,5 +494,5 @@ def backup(context):
 
 
     print(
-        "Backup MySQL completato"
+        "MySQL backup completed"
     )

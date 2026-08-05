@@ -5,7 +5,7 @@ from shared.inventory import save_inventory
 
 PLUGIN = {
     "name": "antigravity",
-    "description": "Configurazioni ed estensioni Antigravity IDE",
+    "description": "Antigravity IDE configuration and extensions",
     "requires_password": False,
     "has_restore": True,
     "restore_items": [
@@ -67,7 +67,6 @@ def backup(context):
             if src_file.exists():
                 shutil.copy2(src_file, backup_pref_dir)
                 result["preferences_backed_up"] = True
-                print(f"Copiato: {f}")
         
         # Salviamo gli snippets personalizzati
         snippets_dir = user_dir / "snippets"
@@ -77,7 +76,6 @@ def backup(context):
                 shutil.rmtree(dest_snippets)
             shutil.copytree(snippets_dir, dest_snippets)
             result["preferences_backed_up"] = True
-            print("Copiata cartella: snippets")
 
         if hasattr(context, 'register_artifact') and result["preferences_backed_up"]:
             context.register_artifact(backup_pref_dir)
@@ -113,12 +111,15 @@ def backup(context):
         if hasattr(context, 'register_artifact'):
             context.register_artifact(ext_list_path)
             
-        print(f"Creato: {ext_list_path}")
 
     # ============================================================
     # 3. SALVATAGGIO INVENTARIO JSON
     # ============================================================
     inventory_file = save_inventory(context, "antigravity", result)
-    print(f"Creato: {inventory_file}")
+    print(
+        "IDE backup completed: "
+        f"{'preferences saved' if result['preferences_backed_up'] else 'no preferences found'}, "
+        f"{len(result['extensions'])} extensions recorded."
+    )
 
     return result

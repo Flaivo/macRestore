@@ -4,7 +4,8 @@ from shared.inventory import save_inventory
 
 PLUGIN = {
     "name": "disk_usage",
-    "description": "Analisi utilizzo disco e ricerca file pesanti (System Data)",
+    "description": "Disk usage analysis and large-file search (System Data)",
+    "default_enabled": False,
     "requires_password": False,
     "has_restore": False,
     "restore_items": []
@@ -21,12 +22,12 @@ def backup(context):
     result = {}
     report_lines = []
 
-    print("Analisi del disco in corso (potrebbe richiedere qualche secondo)...")
+    print("Analyzing disk usage (this may take a few seconds)...")
 
     # ============================================================
     # 1. PANORAMICA DISCO
     # ============================================================
-    report_lines.append("=== PANORAMICA DISCO DI SISTEMA ===")
+    report_lines.append("=== SYSTEM DISK OVERVIEW ===")
     df_out = run_cmd("df -h /")
     report_lines.append(df_out)
     report_lines.append("")
@@ -35,15 +36,15 @@ def backup(context):
     # 2. SNAPSHOT LOCALI TIME MACHINE
     # Spesso occupano decine di GB di "Dati di sistema" fantasma
     # ============================================================
-    report_lines.append("=== SNAPSHOT LOCALI TIME MACHINE (Spazio nascosto) ===")
+    report_lines.append("=== LOCAL TIME MACHINE SNAPSHOTS (Hidden space) ===")
     tm_out = run_cmd("tmutil listlocalsnapshots /")
-    report_lines.append(tm_out if tm_out else "Nessuno snapshot locale trovato.")
+    report_lines.append(tm_out if tm_out else "No local snapshots found.")
     report_lines.append("")
 
     # ============================================================
     # 3. CARTELLE UTENTE PRINCIPALI
     # ============================================================
-    report_lines.append("=== DIMENSIONE CARTELLE PRINCIPALI UTENTE ===")
+    report_lines.append("=== MAIN USER FOLDER SIZES ===")
     dirs_to_check = [
         "~/Library", 
         "~/Documents", 
@@ -62,7 +63,7 @@ def backup(context):
     # 4. TOP 15 CARTELLE PIU' PESANTI IN ~/Library
     # Qui è dove si nascondono Simulatori, Cache, DerivedData, ecc.
     # ============================================================
-    report_lines.append("=== TOP 15 CARTELLE PIU' PESANTI NELLA LIBRERIA (~/Library) ===")
+    report_lines.append("=== TOP 15 LARGEST FOLDERS IN LIBRARY (~/Library) ===")
     # du -sm calcola in Megabyte per poter ordinare numericamente (sort -nr)
     top_lib = run_cmd("du -sm ~/Library/* 2>/dev/null | sort -nr | head -15")
     
@@ -93,7 +94,7 @@ def backup(context):
     result["report_generated"] = True
     result["report_path"] = str(report_file.relative_to(context.config.parent))
 
-    print(f"Analisi disco completata. Risultati salvati in: {report_file.name}")
+    print(f"Disk analysis completed. Results saved to: {report_file.name}")
 
     if hasattr(context, 'register_artifact'):
         context.register_artifact(dest_dir)

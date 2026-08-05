@@ -3,40 +3,40 @@ from pathlib import Path
 
 PLUGIN = {
     "name": "development",
-    "description": "Ripristina configurazioni di sviluppo (ZSH)"
+    "description": "Restore development configurations (ZSH)"
 }
 
 def restore(context):
-    # Capiamo dove si trova il file di backup
+    # Locate the backup file
     source_dir = context.config_dir / "development"
     zshrc_source = source_dir / ".zshrc"
 
-    # La destinazione reale nel sistema
+    # Actual destination on the system
     zshrc_dest = Path.home() / ".zshrc"
 
-    # 1. Verifica che il file esista nel backup
+    # 1. Check that the file exists in the backup
     if not zshrc_source.exists():
-        print("  ⏭️  Nessun file .zshrc trovato nel backup, salto.")
+        print('  [SKIP] No .zshrc found in backup, skipping.')
         return
 
-    # 2. LOGICA DRY-RUN (Simulazione)
+    # 2. DRY-RUN logic (Simulation)
     if context.dry_run:
-        print(f"  [DRY-RUN] Copierei: {zshrc_source}")
-        print(f"  [DRY-RUN] Verso:    {zshrc_dest}")
+        print(f'  [DRY-RUN] Would copy: {zshrc_source}')
+        print(f'  [DRY-RUN] To:         {zshrc_dest}')
         if zshrc_dest.exists():
-            print(f"  [DRY-RUN] (Il file esistente verrebbe sovrascritto)")
+            print('  [DRY-RUN] (The existing file would be overwritten)')
         return
 
-    # 3. LOGICA REALE (Esecuzione)
+    # 3. REAL logic (Execution)
     try:
-        # Se esiste già un file, ne facciamo una copia di sicurezza rapida prima di sovrascriverlo
+        # If a file already exists, create a quick safety backup before overwriting
         if zshrc_dest.exists():
-            backup_esistente = Path.home() / ".zshrc.pre-restore"
-            shutil.copy2(zshrc_dest, backup_esistente)
-            print(f"  💾 Backup del .zshrc esistente creato in {backup_esistente.name}")
+            backup_existing = Path.home() / ".zshrc.pre-restore"
+            shutil.copy2(zshrc_dest, backup_existing)
+        print(f'  [NOTE] Backup of existing .zshrc created at {backup_existing.name}')
 
         shutil.copy2(zshrc_source, zshrc_dest)
-        print(f"  ✅ .zshrc ripristinato con successo in {zshrc_dest}")
+        print(f'  [OK] .zshrc successfully restored to {zshrc_dest}')
 
     except Exception as e:
-        print(f"  ❌ Errore nel ripristino di .zshrc: {e}")
+        print(f'  [ERROR] Error restoring .zshrc: {e}')

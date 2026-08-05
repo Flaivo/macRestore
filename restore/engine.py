@@ -1,5 +1,6 @@
 from pathlib import Path
 from shared.plugin_loader import PluginLoader
+from shared.progress import Spinner
 
 class RestoreContext:
     def __init__(self, backup_dir, dry_run=True):
@@ -26,15 +27,15 @@ class RestoreEngine:
         modules = self.list_modules()
 
         print("\n" + "=" * 60)
-        print(f"🔄 MAC RESTORE - INIZIO PROCESSO DI RIPRISTINO")
-        print(f"📂 Sorgente: {self.context.backup_dir.name}")
+        print("\nMAC RESTORE - STARTING RESTORE PROCESS")
+        print(f"Source: {self.context.backup_dir.name}")
         print("=" * 60)
         
         if self.context.dry_run:
-            print("⚠️  ATTENZIONE: Modalità DRY-RUN attiva.")
-            print("Nessun file verrà realmente modificato sul sistema.\n")
+            print("WARNING: DRY-RUN mode active.")
+            print("No files will actually be modified on the system.\n")
         else:
-            print("🔥 ATTENZIONE: Modalità ESECUZIONE REALE attiva.\n")
+            print("WARNING: LIVE EXECUTION mode active.\n")
 
         for module in modules:
             name = module.PLUGIN.get("name", "Unknown")
@@ -42,11 +43,14 @@ class RestoreEngine:
             if selected and name not in selected:
                 continue
 
-            print(f"\n[{name}] Avvio ripristino...")
+            spinner = Spinner(f"Restoring {name}")
+            spinner.start()
             try:
                 # Passiamo il context al modulo!
                 module.restore(self.context)
+                spinner.stop(success=True)
             except Exception as e:
-                print(f"❌ Errore durante il ripristino di {name}: {e}")
+                spinner.stop(success=False)
+                print(f"[ERROR] Error while restoring {name}: {e}")
                 
-        print("\n✅ Processo completato.\n")
+        print("\nProcess completed.\n")

@@ -3,7 +3,7 @@ from pathlib import Path
 
 PLUGIN = {
     "name": "mobile_dev",
-    "description": "Ripristina Keystore Android e Xcode Provisioning Profiles"
+    "description": "Restore Android Keystore and Xcode Provisioning Profiles"
 }
 
 def restore(context):
@@ -13,13 +13,13 @@ def restore(context):
     prod_keys_dest = Path.home() / "Desktop" / "Android_Prod_Keys"
 
     if not base_src.exists():
-        print("  ⏭️  Nessun dato Mobile Dev trovato.")
+        print('  [SKIP] No Mobile Dev data found.')
         return
 
     if context.dry_run:
-        print(f"  [DRY-RUN] Ripristinerei debug.keystore in {android_dest}")
-        print(f"  [DRY-RUN] Ripristinerei Provisioning Profiles in {xcode_dest}")
-        print(f"  [DRY-RUN] Metterei le chiavi di produzione (.jks) in {prod_keys_dest}")
+        print(f'  [DRY-RUN] Would restore debug.keystore to {android_dest}')
+        print(f'  [DRY-RUN] Would restore Provisioning Profiles to {xcode_dest}')
+        print(f'  [DRY-RUN] Would place production keys (.jks) in {prod_keys_dest}')
         return
 
     try:
@@ -28,21 +28,21 @@ def restore(context):
         if debug_src.exists():
             android_dest.mkdir(parents=True, exist_ok=True)
             shutil.copy2(debug_src, android_dest / "debug.keystore")
-            print("  ✅ Android debug.keystore ripristinato.")
+            print('  [OK] Android debug.keystore restored.')
 
         # Provisioning Profiles
         xcode_src = base_src / "xcode" / "Provisioning Profiles"
         if xcode_src.exists():
             xcode_dest.mkdir(parents=True, exist_ok=True)
             shutil.copytree(xcode_src, xcode_dest, dirs_exist_ok=True)
-            print("  ✅ Xcode Provisioning Profiles ripristinati.")
+            print('  [OK] Xcode Provisioning Profiles restored.')
 
         # Produzione Keystores
         prod_src = base_src / "android_prod_keys"
         if prod_src.exists():
             prod_keys_dest.mkdir(parents=True, exist_ok=True)
             shutil.copytree(prod_src, prod_keys_dest, dirs_exist_ok=True)
-            print(f"  ✅ Chiavi di produzione Android estratte in {prod_keys_dest}")
+            print(f'  [OK] Android production keys extracted to {prod_keys_dest}')
 
     except Exception as e:
-        print(f"  ❌ Errore Mobile Dev: {e}")
+        print(f'  [ERROR] Mobile Dev error: {e}')

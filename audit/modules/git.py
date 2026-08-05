@@ -7,7 +7,7 @@ from shared.filesystem import copy_file
 
 PLUGIN = {
     "name": "git",
-    "description": "Backup configurazione Git",
+    "description": "Backup Git configuration",
     "requires_password": False,
     "has_restore": True,
     "restore_items": [
@@ -87,10 +87,4 @@ def backup(context):
     )
 
 
-    print(
-        "Git configurazioni:",
-        [
-            item["source"]
-            for item in copied
-        ]
-    )
+    print(f"Git configuration backup completed: {len(copied)} files saved.")

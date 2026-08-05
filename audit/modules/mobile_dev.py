@@ -4,7 +4,7 @@ from shared.inventory import save_inventory
 
 PLUGIN = {
     "name": "mobile_dev",
-    "description": "Backup Keystore Android e Xcode Provisioning Profiles",
+    "description": "Backup Android keystore and Xcode provisioning profiles",
     "requires_password": False,
     "has_restore": True,
     "restore_items": ["android_keys", "xcode_profiles"]
@@ -23,7 +23,6 @@ def backup(context):
             dest.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(debug_key, dest)
             result["android_keystores"].append("debug.keystore")
-            print("Copiato Android debug.keystore")
 
     # 2. Xcode Provisioning Profiles
     prov_dir = Path.home() / "Library" / "MobileDevice" / "Provisioning Profiles"
@@ -32,8 +31,12 @@ def backup(context):
         shutil.copytree(prov_dir, dest_prov, dirs_exist_ok=True)
         count = len(list(prov_dir.glob("*.mobileprovision")))
         result["xcode_profiles"] = count
-        if count > 0:
-            print(f"Copiati {count} Xcode Provisioning Profiles")
+
+    print(
+        "Mobile development backup completed: "
+        f"{len(result['android_keystores'])} Android keystores and "
+        f"{result['xcode_profiles']} Xcode provisioning profiles saved."
+    )
 
     save_inventory(context, "mobile_dev", result)
     return result

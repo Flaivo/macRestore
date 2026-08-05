@@ -1,6 +1,7 @@
 from pathlib import Path
 import shutil
 import stat
+import tempfile
 from datetime import datetime
 
 def copy_directory(
@@ -45,6 +46,13 @@ def create_backup_directory(base_path):
         exist_ok=True
     )
 
+    return backup_path
+
+
+def create_temporary_backup_directory():
+    """Create a private plaintext staging directory outside the backup target."""
+    backup_path = Path(tempfile.mkdtemp(prefix=".macrestore-"))
+    backup_path.chmod(0o700)
     return backup_path
 
 

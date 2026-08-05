@@ -3,7 +3,7 @@ from pathlib import Path
 
 PLUGIN = {
     "name": "obsidian",
-    "description": "Ripristina le configurazioni di Obsidian e i Vault"
+    "description": "Restore Obsidian configurations and Vaults"
 }
 
 def restore(context):
@@ -11,30 +11,30 @@ def restore(context):
     vaults_src = context.files_dir / "obsidian" / "vaults"
     
     config_dest = Path.home() / "Library" / "Application Support" / "obsidian"
-    vaults_dest = Path.home() / "Desktop" / "Obsidian_Vaults_Ripristinati"
+    vaults_dest = Path.home() / "Desktop" / "Obsidian_Vaults_Restored"
 
     if not config_src.exists() and not vaults_src.exists():
-        print("  ⏭️  Nessun dato di Obsidian trovato nel backup.")
+        print('  [SKIP] No Obsidian data found in backup.')
         return
 
-    # LOGICA DRY-RUN
+    # DRY-RUN logic
     if context.dry_run:
         if config_src.exists():
-            print(f"  [DRY-RUN] Ripristinerei le preferenze in {config_dest}")
+            print(f'  [DRY-RUN] Would restore preferences to {config_dest}')
         if vaults_src.exists():
-            print(f"  [DRY-RUN] Metterei i tuoi Vault in {vaults_dest}")
+            print(f'  [DRY-RUN] Would place your Vaults in {vaults_dest}')
         return
 
-    # LOGICA REALE
+    # REAL logic
     try:
         if config_src.exists():
             config_dest.mkdir(parents=True, exist_ok=True)
             shutil.copytree(config_src, config_dest, dirs_exist_ok=True)
-            print("  ✅ Preferenze di Obsidian ripristinate.")
+            print('  [OK] Obsidian preferences restored.')
             
         if vaults_src.exists():
             vaults_dest.mkdir(parents=True, exist_ok=True)
             shutil.copytree(vaults_src, vaults_dest, dirs_exist_ok=True)
-            print(f"  ✅ Vaults di Obsidian estratti in {vaults_dest}")
+            print(f'  [OK] Obsidian vaults extracted to {vaults_dest}')
     except Exception as e:
-        print(f"  ❌ Errore nel ripristino di Obsidian: {e}")
+        print(f'  [ERROR] Error restoring Obsidian: {e}')

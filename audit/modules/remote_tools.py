@@ -5,7 +5,7 @@ from shared.inventory import save_inventory
 
 PLUGIN = {
     "name": "remote_tools",
-    "description": "Backup configurazioni tool remoti (FileZilla, Termius, AnyDesk, ecc.)",
+    "description": "Backup remote-tool configurations (FileZilla, Termius, AnyDesk, etc.)",
     "requires_password": False,
     "has_restore": True,
     "restore_items": [
@@ -62,11 +62,9 @@ def backup(context):
                         shutil.rmtree(dest_path)
                     
                     shutil.copytree(p, dest_path, ignore=ignore_caches)
-                    print(f"Copiata cartella {tool_name}: {p.name}")
                     tool_backed_up = True
                 else:
                     shutil.copy2(p, tool_dest_dir / p.name)
-                    print(f"Copiato file {tool_name}: {p.name}")
                     tool_backed_up = True
 
         if tool_backed_up:
@@ -79,6 +77,8 @@ def backup(context):
     # SALVATAGGIO INVENTARIO JSON
     # ============================================================
     inventory_file = save_inventory(context, "remote_tools", result)
-    print(f"Creato: {inventory_file}")
+    print(
+        f"Remote-tool backup completed: {len(result['backed_up_tools'])} tools saved."
+    )
 
     return result

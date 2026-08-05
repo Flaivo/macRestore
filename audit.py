@@ -4,60 +4,74 @@ import subprocess
 import sys
 import getpass
 from version import __version__
+from shared.input import read_key, read_number
 
 def setup_custom_backup_dir():
     """
-    Chiede all'utente se vuole usare una cartella custom PRIMA 
-    che i moduli vengano importati, settando una variabile d'ambiente.
+    Asks the user whether to use a custom folder BEFORE
+    modules are imported, by setting an environment variable.
     """
-    # Se stiamo solo verificando un backup esistente (--verify), saltiamo la domanda
+    # If we are only verifying an existing backup (--verify), skip the question
     if len(sys.argv) > 2 and sys.argv[1] == "--verify":
         return
 
-    scelta = input("\nVuoi salvare il backup in una cartella diversa da quella di default? (y/N): ").strip().lower()
+    scelta = read_key(
+        "\nChoose a custom backup destination? Default is ./backups/ (y/n): ",
+        valid_keys={"y", "n"},
+    )
     
     if scelta == 'y':
-        print("Apertura finestra del Finder in corso...")
+        print("Opening Finder window...")
         try:
-            # Comando AppleScript per aprire il selettore cartelle nativo di macOS
-            apple_script = 'POSIX path of (choose folder with prompt "Seleziona la cartella base dove creare il backup:")'
+            # AppleScript command to open the native macOS folder picker
+            apple_script = 'POSIX path of (choose folder with prompt "Select the base folder where the backup will be created:")'
             risultato = subprocess.run(['osascript', '-e', apple_script], capture_output=True, text=True)
             
             percorso_custom = risultato.stdout.strip()
             
             if percorso_custom:
-                print(f"✅ Destinazione personalizzata impostata: {percorso_custom}")
-                # Salviamo il percorso nell'ambiente per farlo leggere a config.py
+                print(f"Custom destination set: {percorso_custom}")
+                # Save the path in the environment so config.py can read it
                 os.environ["MAC_RESTORE_CUSTOM_DIR"] = percorso_custom
             else:
-                print("⚠️ Nessuna cartella selezionata (Annullato). Uso la destinazione di default.")
+                print("Warning: no folder selected (cancelled). Using the default destination.")
         except Exception as e:
-            print(f"⚠️ Errore nell'apertura del Finder: {e}. Uso la destinazione di default.")
+            print(f"Warning: error opening Finder: {e}. Using the default destination.")
     else:
-        print("📁 Uso la destinazione di default.")
+        print("Using the default destination.")
 
 def select_modules(modules):
     """
-    Mostra un menu interattivo per selezionare quali moduli eseguire.
+    Shows an interactive menu to select which modules to run.
     """
     print("\n" + "=" * 55)
-    print("🛠️  MAC RESTORE - MENU DI BACKUP")
+    print("MAC RESTORE - BACKUP MENU")
     print("=" * 55)
-    print(" 0. Esegui TUTTI i moduli (Default)")
+    default_modules = [
+        module for module in modules
+        if module.PLUGIN.get("default_enabled", True)
+    ]
+
+    print(" 0. Run all standard modules (Default)")
+    print("    (Optional modules are listed below and can be selected individually.)")
     print("-" * 55)
 
     for idx, module in enumerate(modules, 1):
-        name = module.PLUGIN.get("name", "Sconosciuto")
+        name = module.PLUGIN.get("name", "Unknown")
         desc = module.PLUGIN.get("description", "")
-        print(f"{idx:2d}. {name.ljust(15)} : {desc}")
+        optional = " [Optional]" if not module.PLUGIN.get("default_enabled", True) else ""
+        print(f"{idx:2d}. {name.ljust(15)}{optional} : {desc}")
 
     print("=" * 55)
 
-    scelta = input("\nSeleziona i moduli (es. 0 per tutti, oppure 1,3) [0]: ").strip()
+    scelta = read_number(
+        "\nPress 0 for all standard modules or a module number (no Enter): ",
+        len(modules),
+    )
 
     if not scelta or scelta == '0':
-        print("\n🚀 Esecuzione di TUTTI i moduli in corso...\n")
-        return None
+        print("\nRunning all standard modules...\n")
+        return [module.PLUGIN.get("name") for module in default_modules]
 
     selezionati_nomi = []
     for item in scelta.split(','):
@@ -68,19 +82,19 @@ def select_modules(modules):
                 nome_modulo = modules[idx - 1].PLUGIN.get("name")
                 selezionati_nomi.append(nome_modulo)
             else:
-                print(f"⚠️  Avviso: Indice {idx} non valido, ignorato.")
+                print(f"Warning: index {idx} out of range, skipped.")
         else:
-            print(f"⚠️  Avviso: Valore '{item}' non valido, ignorato.")
+            print(f"Warning: value '{item}' is not valid, skipped.")
 
     if not selezionati_nomi:
-        print("\n❌ Nessun modulo valido selezionato. Esecuzione annullata.")
+        print("\nNo valid module selected. Execution cancelled.")
         sys.exit(0)
 
-    print(f"\n🚀 Moduli selezionati per l'esecuzione: {', '.join(selezionati_nomi)}\n")
+    print(f"\nModules selected for execution: {', '.join(selezionati_nomi)}\n")
     return selezionati_nomi
 
 def build_parser():
-    parser = argparse.ArgumentParser(description="Mac Restore - Motore di backup e verifica")
+    parser = argparse.ArgumentParser(description="Mac Restore - Backup and verification engine")
     parser.add_argument(
         "--version",
         action="version",
@@ -89,7 +103,7 @@ def build_parser():
     parser.add_argument(
         "--verify",
         metavar="BACKUP_PATH",
-        help="verifica l'integrità di un backup senza avviare la procedura interattiva",
+        help="verify the integrity of a backup without starting the interactive procedure",
     )
     return parser
 
@@ -97,27 +111,30 @@ def build_parser():
 def main(argv=None):
     args = build_parser().parse_args(argv)
 
-    # Gli import avvengono dopo la scelta della directory: config.py deve leggere
-    # l'eventuale variabile MAC_RESTORE_CUSTOM_DIR appena impostata.
-    from audit.engine import AuditEngine
-    from shared.verify import verify_backup
-    from shared.report import print_verification
-
     if args.verify:
+        # Per --verify non serve scegliere la cartella, importiamo subito
+        from shared.verify import verify_backup
+        from shared.report import print_verification
+
         password = None
         if args.verify.endswith(".backup"):
-            password = getpass.getpass("Password del backup: ")
+            password = getpass.getpass("Backup password: ")
         result = verify_backup(args.verify, password=password)
         print_verification(result)
         return 0
 
+    # La scelta della cartella DEVE avvenire prima degli import:
+    # config.py legge MAC_RESTORE_CUSTOM_DIR al momento del caricamento del modulo,
+    # quindi deve essere settata prima che qualsiasi import la includa.
     setup_custom_backup_dir()
+
+    from audit.engine import AuditEngine
 
     engine = AuditEngine()
     modules = engine.list_modules()
 
     if not modules:
-        print("Nessun modulo disponibile.")
+        print("No modules available.")
         return 0
 
     selected_names = select_modules(modules)
@@ -127,5 +144,8 @@ if __name__ == "__main__":
     try:
         sys.exit(main())
     except KeyboardInterrupt:
-        print("\n\nOperazione annullata dall'utente.\n")
+        print("\n\nOperation cancelled by the user.\n")
         sys.exit(0)
+    except RuntimeError as error:
+        print(f"\nError: {error}\n")
+        sys.exit(1)

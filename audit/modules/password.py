@@ -5,7 +5,7 @@ from shared.inventory import save_inventory
 
 PLUGIN = {
     "name": "passwords",
-    "description": "Backup Keychain e database password Browser (Chrome/Arc)",
+    "description": "Backup keychains and browser password databases (Chrome/Arc)",
     "requires_password": False,
     "has_restore": False,
     "restore_items": []
@@ -41,7 +41,6 @@ def backup_browser_passwords(context, browser_name, base_path):
                 # Copiamo il database delle password
                 shutil.copy2(login_data_path, dest_profile_dir / "Login Data")
                 backed_up_profiles.append(profile_dir.name)
-                print(f"Copiato database password {browser_name} - Profilo: {profile_dir.name}")
                 
     return backed_up_profiles
 
@@ -69,7 +68,6 @@ def backup(context):
                 dest = backup_keychain_dir / item.name
                 shutil.copy2(item, dest)
                 result["keychain_files"].append(item.name)
-                print(f"Copiato Keychain locale: {item.name}")
 
         result["keychains_backed_up"] = len(result["keychain_files"])
 
@@ -100,6 +98,10 @@ def backup(context):
         context.register_artifact(passwords_base_dir)
 
     inventory_file = save_inventory(context, "passwords", result)
-    print(f"Creato: {inventory_file}")
+    print(
+        f"Password backup completed: {len(result['keychain_files'])} keychains and "
+        f"{sum(len(items) for items in result['browsers'].values())} "
+        "browser password databases saved."
+    )
 
     return result

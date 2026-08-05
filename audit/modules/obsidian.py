@@ -5,7 +5,7 @@ from shared.inventory import save_inventory
 
 PLUGIN = {
     "name": "obsidian",
-    "description": "Backup Obsidian Vaults e Configurazioni (senza cache)",
+    "description": "Backup Obsidian vaults and configurations (without caches)",
     "requires_password": False,
     "has_restore": True,
     "restore_items": ["obsidian_vaults"]
@@ -31,7 +31,6 @@ def backup(context):
     
     if app_support.exists():
         # Copia preferenze e plugin escludendo la spazzatura di Electron
-        print("Salvataggio configurazioni Obsidian (ignorando cache)...")
         shutil.copytree(
             app_support, 
             config_dest / "app_support", 
@@ -51,9 +50,13 @@ def backup(context):
                             vault_dest = files_dest / "vaults" / v_path.name
                             shutil.copytree(v_path, vault_dest, dirs_exist_ok=True)
                             result["vaults_backed_up"].append(v_path.name)
-                            print(f"Salvato Obsidian Vault: {v_path.name}")
             except Exception as e:
-                print(f"Errore lettura Obsidian JSON: {e}")
+                result["error"] = str(e)
 
     save_inventory(context, "obsidian", result)
+    print(
+        "Obsidian backup completed: "
+        f"{len(result['vaults_backed_up'])} vaults saved"
+        + (" with errors." if result.get("error") else ".")
+    )
     return result

@@ -3,7 +3,7 @@ from pathlib import Path
 
 PLUGIN = {
     "name": "workbench",
-    "description": "Ripristina le connessioni salvate di MySQL Workbench"
+    "description": "Restore saved connections of MySQL Workbench"
 }
 
 def restore(context):
@@ -12,19 +12,19 @@ def restore(context):
     dest_file = dest_dir / "connections.xml"
 
     if not source_file.exists():
-        print("  ⏭️  File connections.xml di Workbench non trovato, salto.")
+        print('  [SKIP] Workbench connections.xml not found, skipping.')
         return
 
-    # LOGICA DRY-RUN
+    # DRY-RUN logic
     if context.dry_run:
-        print(f"  [DRY-RUN] Copierei: connections.xml")
-        print(f"  [DRY-RUN] Verso:    {dest_dir}")
+        print(f"  [DRY-RUN] Would copy: connections.xml")
+        print(f"  [DRY-RUN] To:       {dest_dir}")
         return
 
-    # LOGICA REALE
+    # REAL logic
     try:
         dest_dir.mkdir(parents=True, exist_ok=True)
         shutil.copy2(source_file, dest_file)
-        print(f"  ✅ Connessioni di MySQL Workbench ripristinate in {dest_dir}")
+        print(f'  [OK] MySQL Workbench connections restored to {dest_dir}')
     except Exception as e:
-        print(f"  ❌ Errore nel ripristino di Workbench: {e}")
+        print(f'  [ERROR] Error restoring Workbench: {e}')

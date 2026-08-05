@@ -26,7 +26,7 @@ def is_encrypted_backup(path):
 
 def _key_from_password(password, salt):
     if not password:
-        raise ValueError("La password del backup non può essere vuota")
+        raise ValueError("Backup password cannot be empty")
     return Scrypt(
         salt=salt,
         length=32,
@@ -39,19 +39,19 @@ def _key_from_password(password, salt):
 def validate_backup_password(password):
     """Validate the user-facing password policy for new encrypted backups."""
     if not password:
-        raise ValueError("La password del backup non può essere vuota")
+        raise ValueError("Backup password cannot be empty")
     if len(password) < MIN_PASSWORD_LENGTH:
         raise ValueError(
-            f"La password deve contenere almeno {MIN_PASSWORD_LENGTH} caratteri"
+            f"Password must contain at least {MIN_PASSWORD_LENGTH} characters"
         )
     if not any(character.isupper() for character in password):
-        raise ValueError("La password deve contenere almeno una lettera maiuscola")
+        raise ValueError("Password must contain at least one uppercase letter")
     if not any(character.islower() for character in password):
-        raise ValueError("La password deve contenere almeno una lettera minuscola")
+        raise ValueError("Password must contain at least one lowercase letter")
     if not any(character.isdigit() for character in password):
-        raise ValueError("La password deve contenere almeno un numero")
+        raise ValueError("Password must contain at least one number")
     if not any(not character.isalnum() and not character.isspace() for character in password):
-        raise ValueError("La password deve contenere almeno un simbolo speciale")
+        raise ValueError("Password must contain at least one special symbol")
 
 
 def _write_header(output, salt, nonce, archive_name):
@@ -73,7 +73,7 @@ def encrypt_backup_directory(source_dir, encrypted_path, password):
     source_dir = Path(source_dir).resolve()
     encrypted_path = Path(encrypted_path).resolve()
     if not source_dir.is_dir():
-        raise ValueError(f"Backup non trovato: {source_dir}")
+        raise ValueError(f"Backup not found: {source_dir}")
 
     encrypted_path.parent.mkdir(parents=True, exist_ok=True)
     temporary_archive = None
@@ -113,15 +113,15 @@ def encrypt_backup_directory(source_dir, encrypted_path, password):
 
 def _read_header(source):
     if source.readline() != MAGIC:
-        raise ValueError("Formato backup cifrato non riconosciuto")
+        raise ValueError("Unrecognized encrypted backup format")
     try:
         header = json.loads(source.readline().decode("utf-8"))
         salt = base64.b64decode(header["salt"])
         nonce = base64.b64decode(header["nonce"])
     except (KeyError, ValueError, json.JSONDecodeError) as error:
-        raise ValueError("Header del backup cifrato non valido") from error
+        raise ValueError("Invalid encrypted backup header") from error
     if len(salt) != SALT_SIZE or len(nonce) != NONCE_SIZE:
-        raise ValueError("Parametri crittografici non validi")
+        raise ValueError("Invalid cryptographic parameters")
     return salt, nonce
 
 
@@ -129,14 +129,14 @@ def _safe_extract(archive, destination):
     destination = destination.resolve()
     for member in archive.getmembers():
         if member.name.startswith("/"):
-            raise ValueError("Archivio con percorso assoluto non valido")
+            raise ValueError("Archive contains an invalid absolute path")
         target = (destination / member.name).resolve()
         try:
             target.relative_to(destination)
         except ValueError as error:
-            raise ValueError("Archivio con percorso fuori dalla destinazione") from error
+            raise ValueError("Archive contains a path outside the destination") from error
         if member.issym() or member.islnk():
-            raise ValueError("Archivio con link non supportato")
+            raise ValueError("Archive contains an unsupported link")
     archive.extractall(destination)
 
 
@@ -144,16 +144,17 @@ def _safe_extract(archive, destination):
 def decrypted_backup(encrypted_path, password):
     encrypted_path = Path(encrypted_path).resolve()
     if not encrypted_path.is_file():
-        raise ValueError(f"Backup cifrato non trovato: {encrypted_path}")
+        raise ValueError(f"Encrypted backup not found: {encrypted_path}")
 
-    temporary_root = Path(tempfile.mkdtemp(prefix="macrestore-decrypted-"))
+    temporary_root = Path(tempfile.mkdtemp(prefix=".macrestore-decrypted-"))
+    temporary_root.chmod(0o700)
     temporary_archive = temporary_root / "backup.tar.gz"
     try:
         with encrypted_path.open("rb") as source:
             salt, nonce = _read_header(source)
             cipher_length = encrypted_path.stat().st_size - source.tell() - TAG_SIZE
             if cipher_length < 0:
-                raise ValueError("Backup cifrato troncato")
+                raise ValueError("Encrypted backup is truncated")
             decryptor = Cipher(
                 algorithms.AES(_key_from_password(password, salt)),
                 modes.GCM(nonce),
@@ -163,16 +164,16 @@ def decrypted_backup(encrypted_path, password):
                 while remaining:
                     chunk = source.read(min(1024 * 1024, remaining))
                     if not chunk:
-                        raise ValueError("Backup cifrato troncato")
+                        raise ValueError("Encrypted backup is truncated")
                     output.write(decryptor.update(chunk))
                     remaining -= len(chunk)
                 tag = source.read(TAG_SIZE)
                 if len(tag) != TAG_SIZE:
-                    raise ValueError("Backup cifrato senza tag di autenticazione")
+                    raise ValueError("Encrypted backup has no authentication tag")
                 try:
                     output.write(decryptor.finalize_with_tag(tag))
                 except Exception as error:
-                    raise ValueError("Password errata o backup cifrato alterato") from error
+                    raise ValueError("Incorrect password or modified encrypted backup") from error
 
         with tarfile.open(temporary_archive, "r:gz") as archive:
             _safe_extract(archive, temporary_root)
@@ -181,7 +182,7 @@ def decrypted_backup(encrypted_path, password):
             if item != temporary_archive
         ]
         if len(extracted) != 1 or not extracted[0].is_dir():
-            raise ValueError("Struttura del backup cifrato non valida")
+            raise ValueError("Invalid encrypted backup structure")
         yield extracted[0]
     finally:
         shutil.rmtree(temporary_root, ignore_errors=True)

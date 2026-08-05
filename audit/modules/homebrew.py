@@ -7,7 +7,7 @@ from shared.terminal import run
 
 PLUGIN = {
     "name": "homebrew",
-    "description": "Backup pacchetti Homebrew",
+    "description": "Backup Homebrew packages",
     "requires_password": False,
     "has_restore": True,
     "restore_items": [
@@ -38,7 +38,7 @@ def backup(context):
         )
 
         print(
-            "Homebrew non trovato"
+            "Homebrew not found"
         )
 
         return
@@ -94,16 +94,13 @@ def backup(context):
             brewfile
         )
 
-        print(
-            "Creato:",
-            brewfile
-        )
+        print("Homebrew backup completed: Brewfile saved.")
 
         context.register_artifact(brewfile)
 
     else:
 
         print(
-            "Errore Brewfile:",
+            "Brewfile error:",
             export["stderr"]
         )

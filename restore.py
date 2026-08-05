@@ -7,80 +7,130 @@ from pathlib import Path
 from restore.engine import RestoreEngine
 from shared.encryption import decrypted_backup, is_encrypted_backup
 from version import __version__
+from shared.input import read_number
 
-# Calcoliamo il percorso assoluto infallibile per la cartella backups di default
+# Compute the absolute path to the default backups folder
 BASE_DIR = Path(__file__).resolve().parent
 DEFAULT_BACKUP_DIR = BASE_DIR / "backups"
 
 def get_backup_source():
     """
-    Trova l'ultimo backup e chiede all'utente se vuole usare quello o aprire il Finder.
+    Lists backups in the default folder and lets the user select one.
     """
-    latest_backup = None
-    
-    # Cerca l'ultimo backup nella cartella di default
+    backups = []
     if DEFAULT_BACKUP_DIR.exists():
         backups = [
             d for d in DEFAULT_BACKUP_DIR.iterdir()
             if (d.is_dir() or is_encrypted_backup(d))
             and not d.name.startswith(".")
         ]
-        if backups:
-            latest_backup = sorted(backups, key=lambda x: x.name, reverse=True)[0]
+        backups = sorted(backups, key=lambda x: x.name, reverse=True)
 
-    if latest_backup:
-        print(f"\n📁 Trovato backup di default in: {DEFAULT_BACKUP_DIR.name}")
-        scelta = input(f"Vuoi ripristinare l'ultimo backup [{latest_backup.name}]? \n(Premi Invio per confermare, 'y' per cercarne un altro dal Finder): ").strip().lower()
-        if scelta != 'y':
-            return latest_backup
+    if backups:
+        print(f"\nAvailable backups in {DEFAULT_BACKUP_DIR.name}:")
+        for index, backup in enumerate(backups, 1):
+            marker = " (latest)" if index == 1 else ""
+            kind = "encrypted" if is_encrypted_backup(backup) else "directory"
+            print(f"{index:2d}. {backup.name}{marker} [{kind}]")
+        print(" 0. Browse with Finder")
+
+        selection = read_number(
+            "Select the backup to restore (no Enter): ",
+            len(backups),
+        )
+        if selection != "0":
+            selected = backups[int(selection) - 1]
+            return selected
     else:
-        print(f"\n⚠️ Nessun backup trovato nella cartella di default ({DEFAULT_BACKUP_DIR}).")
-        print("Apertura del Finder in corso...")
-        
+        print(f"\nWarning: no backup found in the default folder ({DEFAULT_BACKUP_DIR}).")
+
+    print("Opening Finder...")
+
     try:
         if DEFAULT_BACKUP_DIR.exists():
-            apple_script = f'POSIX path of (choose folder with prompt "Seleziona la cartella del backup da ripristinare:" default location POSIX file "{DEFAULT_BACKUP_DIR}")'
+            default_location = str(DEFAULT_BACKUP_DIR).replace("\\", "\\\\").replace('"', '\\"')
+            apple_script = (
+                'tell application "Finder" to activate\n'
+                f'POSIX path of (choose folder with prompt "Select the folder containing the backup:" '
+                f'default location POSIX file "{default_location}")'
+            )
         else:
-            apple_script = 'POSIX path of (choose folder with prompt "Seleziona la cartella del backup da ripristinare:")'
-        
+            apple_script = (
+                'tell application "Finder" to activate\n'
+                'POSIX path of (choose folder with prompt "Select the folder containing the backup:")'
+            )
+
         risultato = subprocess.run(['osascript', '-e', apple_script], capture_output=True, text=True)
         percorso = risultato.stdout.strip()
-        
+
+        if risultato.returncode != 0:
+            error = risultato.stderr.strip()
+            if "User canceled" in error or "-128" in error:
+                print("No backup selected (cancelled). Exiting.")
+            else:
+                print(f"Error opening the Finder backup picker: {error or 'unknown AppleScript error'}")
+            sys.exit(1)
+
         if percorso:
-            print(f"✅ Backup selezionato dal Finder: {percorso}")
-            return Path(percorso)
+            selected = Path(percorso)
+            if selected.is_dir() and (selected / "manifest.json").exists():
+                return selected
+
+            nested_backups = [
+                item for item in selected.iterdir()
+                if (item.is_dir() or is_encrypted_backup(item))
+                and not item.name.startswith(".")
+            ] if selected.is_dir() else []
+            nested_backups = sorted(nested_backups, key=lambda item: item.name, reverse=True)
+
+            if nested_backups:
+                print(f"\nAvailable backups in {selected.name}:")
+                for index, backup in enumerate(nested_backups, 1):
+                    marker = " (latest)" if index == 1 else ""
+                    kind = "encrypted" if is_encrypted_backup(backup) else "directory"
+                    print(f"{index:2d}. {backup.name}{marker} [{kind}]")
+                print(" 0. Use the selected folder")
+                selection = read_number(
+                    "Select the backup to restore (no Enter): ",
+                    len(nested_backups),
+                )
+                if selection != "0":
+                    return nested_backups[int(selection) - 1]
+            return selected
         else:
-            print("❌ Nessuna cartella selezionata (Annullato). Uscita in corso.")
-            sys.exit(0)
+            print("No backup selected (cancelled). Exiting.")
+            sys.exit(1)
     except Exception as e:
-        print(f"❌ Errore nell'apertura del Finder: {e}")
+        print(f"Error opening Finder: {e}")
         sys.exit(1)
 
 
 def select_modules(modules, is_dry_run):
-    """Mostra un menu interattivo per selezionare quali moduli ripristinare."""
+    """Shows an interactive menu to select which modules to restore."""
     print("\n" + "=" * 55)
-    print("🛠️  MAC RESTORE - MENU DI RIPRISTINO")
+    print("MAC RESTORE - RESTORE MENU")
     print("=" * 55)
     
-    # AVVISO GIGANTE DRY-RUN
     if is_dry_run:
-        print(" 🟢 MODALITÀ ATTUALE: [ DRY-RUN ] (Nessun file verrà modificato)")
+        print("CURRENT MODE: [ DRY-RUN ] (No files will be modified)")
     else:
-        print(" 🔴 MODALITÀ ATTUALE: [ ESECUZIONE REALE ] (I file verranno sovrascritti!)")
+        print("CURRENT MODE: [ LIVE EXECUTION ] (Files will be overwritten!)")
     print("=" * 55)
     
-    print(" 0. Ripristina TUTTI i moduli")
+    print(" 0. Restore ALL modules")
     print("-" * 55)
 
     for idx, module in enumerate(modules, 1):
-        name = module.PLUGIN.get("name", "Sconosciuto")
+        name = module.PLUGIN.get("name", "Unknown")
         desc = module.PLUGIN.get("description", "")
         print(f"{idx:2d}. {name.ljust(15)} : {desc}")
 
     print("=" * 55)
 
-    scelta = input("\nSeleziona i moduli da ripristinare (es. 0 per tutti, oppure 1,3) [0]: ").strip()
+    scelta = read_number(
+        "\nPress 0 for all modules or a module number (no Enter): ",
+        len(modules),
+    )
 
     if not scelta or scelta == '0':
         return None
@@ -94,12 +144,12 @@ def select_modules(modules, is_dry_run):
                 nome_modulo = modules[idx - 1].PLUGIN.get("name")
                 selezionati_nomi.append(nome_modulo)
             else:
-                print(f"⚠️  Avviso: Indice {idx} non valido, ignorato.")
+                print(f"Warning: index {idx} out of range, skipped.")
         else:
-            print(f"⚠️  Avviso: Valore '{item}' non valido, ignorato.")
+                print(f"Warning: value '{item}' is not valid, skipped.")
 
     if not selezionati_nomi:
-        print("\n❌ Nessun modulo valido selezionato. Esecuzione annullata.")
+        print("\nNo valid module selected. Execution cancelled.")
         sys.exit(0)
 
     return selezionati_nomi
@@ -110,7 +160,7 @@ def run_restore(backup_path, dry_run_mode):
     modules = engine.list_modules()
 
     if not modules:
-        print("⚠️  Nessun modulo di ripristino trovato in 'restore/modules/'.")
+        print("Warning: no restore modules found in 'restore/modules/'.")
         return
 
     selected_names = select_modules(modules, is_dry_run=dry_run_mode)
@@ -118,21 +168,21 @@ def run_restore(backup_path, dry_run_mode):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Mac Restore - Motore di Ripristino")
+    parser = argparse.ArgumentParser(description="Mac Restore - Restore Engine")
     parser.add_argument(
         "--version",
         action="version",
         version=f"Mac Restore {__version__}",
     )
-    parser.add_argument("backup_path", nargs="?", help="Il percorso della cartella del backup (opzionale)")
-    parser.add_argument("--execute", action="store_true", help="Esegue REALMENTE il ripristino (disabilita il dry-run)")
+    parser.add_argument("backup_path", nargs="?", help="Path to the backup folder (optional)")
+    parser.add_argument("--execute", action="store_true", help="Actually perform the restore (disables dry-run)")
     
     args = parser.parse_args()
 
-    # Logica DRY-RUN: Se non metti --execute, sei al sicuro.
+    # DRY-RUN logic: without --execute you are safe.
     dry_run_mode = not args.execute
 
-    # Logica per trovare il backup
+    # Logic to locate the backup
     if args.backup_path:
         backup_path = Path(args.backup_path)
     else:
@@ -141,16 +191,18 @@ def main():
     if not backup_path.exists() or (
         not backup_path.is_dir() and not is_encrypted_backup(backup_path)
     ):
-        print(f"❌ Errore: La cartella di backup specificata non esiste -> {backup_path}")
+        print(f"Error: the specified backup folder does not exist -> {backup_path}")
         sys.exit(1)
 
+    print(f"\nSelected backup: {backup_path.name}")
+
     if is_encrypted_backup(backup_path):
-        password = getpass.getpass("Password del backup: ")
+        password = getpass.getpass("Backup password: ")
         try:
             with decrypted_backup(backup_path, password) as decrypted_path:
                 run_restore(decrypted_path, dry_run_mode)
         except (OSError, ValueError) as error:
-            print(f"❌ Impossibile aprire il backup cifrato: {error}")
+            print(f"Cannot open the encrypted backup: {error}")
             sys.exit(1)
     else:
         run_restore(backup_path, dry_run_mode)
@@ -160,5 +212,5 @@ if __name__ == "__main__":
     try:
         main()
     except KeyboardInterrupt:
-        print("\n\nOperazione di ripristino annullata dall'utente.\n")
+        print("\n\nRestore operation cancelled by the user.\n")
         sys.exit(0)

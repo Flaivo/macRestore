@@ -8,7 +8,7 @@ from shared.exclusions import should_exclude
 
 PLUGIN = {
     "name": "ssh",
-    "description": "Backup configurazione SSH",
+    "description": "Backup SSH configuration",
     "requires_password": True,
     "has_restore": True,
     "restore_items": [
@@ -40,7 +40,7 @@ def backup(context):
         )
 
         print(
-            "Cartella SSH non trovata"
+            "SSH folder not found"
         )
 
         return
@@ -126,7 +126,7 @@ def backup(context):
 
 
     print(
-        "File SSH:",
+        "SSH files:",
         len(
             data["files"]
         )

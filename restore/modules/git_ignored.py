@@ -3,7 +3,7 @@ from pathlib import Path
 
 PLUGIN = {
     "name": "git_ignored",
-    "description": "Ripristina file ignorati da Git (.env, config) nell'albero dei progetti"
+    "description": "Restore Git-ignored files (.env, config) in the project tree"
 }
 
 def restore(context):
@@ -11,19 +11,19 @@ def restore(context):
     dest_dir = Path.home()
 
     if not source_dir.exists() or not any(source_dir.iterdir()):
-        print("  ⏭️  Nessun file ignorato da Git trovato nel backup, salto.")
+        print('  [SKIP] No Git-ignored files found in backup, skipping.')
         return
 
-    # LOGICA DRY-RUN
+    # DRY-RUN logic
     if context.dry_run:
-        print(f"  [DRY-RUN] Ripristinerei l'albero dei progetti da: {source_dir.name}")
-        print(f"  [DRY-RUN] Verso la tua cartella utente: {dest_dir}")
-        print(f"  [DRY-RUN] (I file .env e le config torneranno nei rispettivi progetti)")
+        print(f'  [DRY-RUN] Would restore project tree from: {source_dir.name}')
+        print(f'  [DRY-RUN] To your home folder: {dest_dir}')
+        print('  [DRY-RUN] (.env files and configs will be back in their respective projects)')
         return
 
-    # LOGICA REALE
+    # REAL logic
     try:
         shutil.copytree(source_dir, dest_dir, dirs_exist_ok=True)
-        print(f"  ✅ File segreti e ignorati ripristinati con successo nei progetti!")
+        print('  [OK] Secret and ignored files successfully restored to projects.')
     except Exception as e:
-        print(f"  ❌ Errore nel ripristino di git_ignored: {e}")
+        print(f'  [ERROR] Error restoring git_ignored: {e}')

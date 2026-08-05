@@ -7,7 +7,7 @@ from shared.inventory import save_inventory
 
 PLUGIN = {
     "name": "git_ignored",
-    "description": "Backup file locali ignorati da Git (.env, config) escludendo dipendenze",
+    "description": "Backup Git-ignored local files (.env, config), excluding dependencies",
     "requires_password": False,
     "has_restore": True,
     "restore_items": ["local_ignored_files"]
@@ -75,7 +75,7 @@ def backup(context):
         if not base_path.exists():
             continue
             
-        print(f"Scansione progetti in: {base_path} ...")
+        print(f"Scanning projects in: {base_path} ...")
         for root, dirs, files in os.walk(base_path):
             depth = Path(root).relative_to(base_path).parts
             if len(depth) > 3:
@@ -115,12 +115,15 @@ def backup(context):
             
             if backed_up_in_repo > 0:
                 result["repos_with_files"].append(str(relative_repo_path))
-                print(f"[{repo.name}]: Salvati {backed_up_in_repo} file locali sensibili")
 
     if hasattr(context, 'register_artifact') and result["backed_up_files"] > 0:
         context.register_artifact(backup_base_dir)
 
     inventory_file = save_inventory(context, "git_ignored", result)
-    print(f"\nOperazione completata. Creato inventario: {inventory_file}")
+    print(
+        "Git-ignored file backup completed: "
+        f"{result['backed_up_files']} files saved across "
+        f"{len(result['repos_with_files'])} repositories."
+    )
 
     return result

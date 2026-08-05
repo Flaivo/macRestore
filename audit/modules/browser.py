@@ -5,7 +5,7 @@ from shared.inventory import save_inventory
 
 PLUGIN = {
     "name": "browsers",
-    "description": "Backup Dati, Segnalibri e Preferenze Browser (Chrome/Arc)",
+    "description": "Backup browser data, bookmarks and preferences (Chrome/Arc)",
     "requires_password": False,
     "has_restore": True,
     "restore_items": [
@@ -82,7 +82,6 @@ def backup_browser_data(context, browser_name, base_path):
                     ext_file.write_text("\n".join(extensions), encoding="utf-8")
 
                 backed_up_profiles.append(profile_info)
-                print(f"Salvato dati {browser_name} - Profilo: {profile_dir.name}")
                 
     return backed_up_profiles
 
@@ -126,7 +125,6 @@ def backup(context):
         for storable in arc_base.glob("Storable*.json"):
             shutil.copy2(storable, arc_dest_base / storable.name)
             result["arc_special_files"].append(storable.name)
-            print(f"Salvato file speciale Arc: {storable.name}")
 
     # ============================================================
     # 4. SALVATAGGIO INVENTARIO E ARTEFATTI
@@ -136,6 +134,10 @@ def backup(context):
         context.register_artifact(browsers_base_dir)
 
     inventory_file = save_inventory(context, "browsers", result)
-    print(f"Creato: {inventory_file}")
+    profile_count = len(result["chrome"]) + len(result["arc"])
+    print(
+        f"Browser backup completed: {profile_count} profiles and "
+        f"{len(result['arc_special_files'])} Arc special files saved."
+    )
 
     return result

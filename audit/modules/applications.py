@@ -7,7 +7,7 @@ from shared.inventory import save_inventory
 
 PLUGIN = {
     "name": "applications",
-    "description": "Applicazioni installate macOS",
+    "description": "Installed macOS applications",
     "requires_password": False,
     "has_restore": False,
     "restore_items": [
@@ -166,14 +166,12 @@ def backup(context): # Rinominato da run() a backup() per matchare il plugin loa
         "applications.txt",
         "\n".join([f'{x["name"]} {x.get("version") or ""}' for x in result["installed_apps"]])
     )
-    print(f"Creato: {f1}")
 
     f2 = save_text(
         context,
         "brew-casks.txt",
         "\n".join(result["brew_casks"])
     )
-    print(f"Creato: {f2}")
 
     if result["mac_app_store"]:
         f3 = save_text(
@@ -181,7 +179,6 @@ def backup(context): # Rinominato da run() a backup() per matchare il plugin loa
             "mas-apps.txt",
             "\n".join([f'{x["id"]}\t{x["name"]}\t{x["version"]}' for x in result["mac_app_store"]])
         )
-        print(f"Creato: {f3}")
 
     result["summary"] = {
         "total_apps": len(result["installed_apps"]),
@@ -190,6 +187,11 @@ def backup(context): # Rinominato da run() a backup() per matchare il plugin loa
     }
 
     inventory_file = save_inventory(context, "applications", result)
-    print(f"Creato: {inventory_file}")
+    print(
+        "Application inventory completed: "
+        f"{result['summary']['total_apps']} apps, "
+        f"{result['summary']['brew_casks']} Homebrew casks and "
+        f"{result['summary']['mas_apps']} App Store apps recorded."
+    )
 
     return result

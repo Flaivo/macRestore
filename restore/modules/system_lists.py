@@ -3,25 +3,25 @@ from pathlib import Path
 
 PLUGIN = {
     "name": "system_lists",
-    "description": "Estrae Brewfile, liste App e report disco sulla Scrivania"
+    "description": "Extract Brewfile, application lists and disk report to the Desktop"
 }
 
 def restore(context):
     dest_dir = Path.home() / "Desktop" / "Install_Lists"
     
-    # Raccogliamo i percorsi
+    # Collect the paths
     brew_dir = context.config_dir / "homebrew"
     app_dir = context.config_dir / "applications"
     disk_dir = context.config_dir / "disk_usage"
 
-    # Se non c'è niente, saltiamo
+    # If nothing is present, skip
     if not brew_dir.exists() and not app_dir.exists() and not disk_dir.exists():
-        print("  ⏭️  Nessuna lista di sistema trovata, salto.")
+        print('  [SKIP] No system lists found, skipping.')
         return
 
     if context.dry_run:
-        print(f"  [DRY-RUN] Creerei la cartella {dest_dir} per contenere:")
-        print("  [DRY-RUN] - Brewfile, liste delle App e report dello spazio disco.")
+        print(f'  [DRY-RUN] Would create folder {dest_dir} containing:')
+        print('  [DRY-RUN] - Brewfile, App lists and disk usage report.')
         return
 
     try:
@@ -39,8 +39,8 @@ def restore(context):
             for file in disk_dir.iterdir():
                 shutil.copy2(file, dest_dir / file.name)
                 
-        print(f"  ✅ Liste di installazione (App/Brew) salvate in {dest_dir}")
-        print("  💡 NOTA: Apri il terminale, vai in quella cartella e lancia 'brew bundle' per reinstallare tutto.")
+        print(f'  [OK] Installation lists (App/Brew) saved to {dest_dir}')
+        print("  [NOTE] Open the terminal, navigate to that folder and run 'brew bundle' to reinstall everything.")
         
     except Exception as e:
-        print(f"  ❌ Errore ripristino system_lists: {e}")
+        print(f'  [ERROR] Error restoring system_lists: {e}')

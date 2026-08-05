@@ -7,7 +7,7 @@ from shared.inventory import save_inventory
 
 PLUGIN = {
     "name": "system",
-    "description": "Informazioni sistema macOS",
+    "description": "macOS system information",
     "requires_password": False,
     "has_restore": False
 }
@@ -56,7 +56,4 @@ def backup(context):
     )
 
 
-    print(
-        "Creato:",
-        inventory_file
-    )
+    print("System inventory completed.")

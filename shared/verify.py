@@ -19,7 +19,7 @@ def verify_backup(
         if password is None:
             return {
                 "valid": False,
-                "error": "password necessaria per il backup cifrato"
+                    "error": "password required for encrypted backup"
             }
         try:
             with decrypted_backup(backup_path, password) as decrypted_path:
@@ -33,7 +33,7 @@ def verify_backup(
     if not backup_path.is_dir():
         return {
             "valid": False,
-            "error": "cartella backup mancante"
+            "error": "backup directory is missing"
         }
 
 
@@ -47,7 +47,7 @@ def verify_backup(
 
         return {
             "valid": False,
-            "error": "checksums.json mancante"
+            "error": "checksums.json is missing"
         }
 
 
@@ -57,7 +57,7 @@ def verify_backup(
     except (OSError, json.JSONDecodeError) as error:
         return {
             "valid": False,
-            "error": f"checksums.json non leggibile: {error}"
+            "error": f"checksums.json is not readable: {error}"
         }
 
 

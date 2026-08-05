@@ -4,7 +4,7 @@ from shared.inventory import save_inventory
 
 PLUGIN = {
     "name": "workbench",
-    "description": "Backup Connessioni MySQL Workbench",
+    "description": "Backup MySQL Workbench connections",
     "requires_password": False,
     "has_restore": True,
     "restore_items": ["mysql_workbench"]
@@ -21,7 +21,10 @@ def backup(context):
             config_dest.mkdir(parents=True, exist_ok=True)
             shutil.copy2(conn_xml, config_dest / "connections.xml")
             result["connections_saved"] = True
-            print("Salvate connessioni MySQL Workbench")
 
     save_inventory(context, "workbench", result)
+    print(
+        "MySQL Workbench backup completed: "
+        f"{1 if result['connections_saved'] else 0} connection file saved."
+    )
     return result

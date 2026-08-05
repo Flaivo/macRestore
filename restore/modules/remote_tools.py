@@ -3,7 +3,7 @@ from pathlib import Path
 
 PLUGIN = {
     "name": "remote_tools",
-    "description": "Ripristina database e preferenze di Termius, AnyDesk, FileZilla e TeamViewer"
+    "description": "Restore databases and preferences of Termius, AnyDesk, FileZilla and TeamViewer"
 }
 
 def restore_tool(context, tool_name, source_path, dest_path, is_file=False):
@@ -11,7 +11,7 @@ def restore_tool(context, tool_name, source_path, dest_path, is_file=False):
         return False
         
     if context.dry_run:
-        print(f"  [DRY-RUN] [{tool_name.upper()}] Copierei: {source_path.name} in {dest_path}")
+        print(f"  [DRY-RUN] [{tool_name.upper()}] Would copy: {source_path.name} to {dest_path}")
         return True
 
     try:
@@ -21,16 +21,16 @@ def restore_tool(context, tool_name, source_path, dest_path, is_file=False):
         else:
             dest_path.mkdir(parents=True, exist_ok=True)
             shutil.copytree(source_path, dest_path, dirs_exist_ok=True)
-        print(f"  ✅ [{tool_name.upper()}] Ripristinato correttamente.")
+        print(f'  [OK] [{tool_name.upper()}] Restored successfully.')
         return True
     except Exception as e:
-        print(f"  ❌ Errore ripristino {tool_name}: {e}")
+        print(f'  [ERROR] Error restoring {tool_name}: {e}')
         return False
 
 def restore(context):
     base_src = context.files_dir / "remote_tools"
     if not base_src.exists():
-        print("  ⏭️  Nessun remote tool trovato, salto.")
+        print('  [SKIP] No remote tools found, skipping.')
         return
 
     has_data = False
@@ -56,4 +56,4 @@ def restore(context):
         has_data = True
 
     if not has_data:
-        print("  ⏭️  Nessun dato specifico dei remote tools trovato nel backup, salto.")
+        print('  [SKIP] No specific remote tools data found in backup, skipping.')

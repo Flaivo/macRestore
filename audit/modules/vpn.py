@@ -8,7 +8,7 @@ from shared.inventory import save_inventory
 
 PLUGIN = {
     "name": "vpn",
-    "description": "Configurazioni VPN macOS",
+    "description": "macOS VPN configurations",
     "requires_password": True,
     "has_restore": True,
     "restore_items": [
@@ -98,15 +98,15 @@ def find_openvpn_profiles():
 
 def copy_with_sudo(source, destination, password=None):
 
-    print(f"Permessi richiesti per: {source}")
+    print(f"Permissions required for: {source}")
 
     try:
         if password is None:
             password = getpass.getpass(
-                "Password macOS per copiare il profilo VPN: "
+                "macOS password to copy the VPN profile (The password is not saved): "
             )
         if not password:
-            print("Copia VPN annullata: password non fornita")
+            print("VPN copy cancelled: no password provided")
             return False
 
         def run_sudo(arguments):
@@ -129,7 +129,7 @@ def copy_with_sudo(source, destination, password=None):
     except (subprocess.CalledProcessError, OSError) as error:
 
         print(
-            f"Copia sudo fallita: {error}"
+            f"sudo copy failed: {error}"
         )
 
         return False
@@ -244,7 +244,7 @@ def backup(context):
     sudo_password = None
     if protected_profiles:
         sudo_password = getpass.getpass(
-            "Password macOS per copiare i profili VPN: "
+            "macOS password to copy VPN profiles (The password is not saved): "
         )
 
 
@@ -273,11 +273,6 @@ def backup(context):
             else:
 
                 destination.unlink()
-
-
-        print(
-            f"Copia VPN: {source}"
-        )
 
 
         success = copy_profile(
@@ -324,13 +319,8 @@ def backup(context):
         data
     )
 
-    if failed_profiles:
-        raise RuntimeError(
-            "Impossibile copiare i profili VPN: "
-            + ", ".join(failed_profiles)
-        )
-
-
     print(
-        "Configurazioni VPN analizzate"
+        "VPN backup completed: "
+        f"{len(copied_profiles)} profiles saved, "
+        f"{len(failed_profiles)} failed."
     )

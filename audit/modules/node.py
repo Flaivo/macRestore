@@ -9,7 +9,7 @@ from shared.filesystem import copy_file
 
 PLUGIN = {
     "name": "node",
-    "description": "Ambiente Node.js e package manager",
+    "description": "Node.js environment and package managers",
     "requires_password": False,
     "has_restore": True,
     "restore_items": [
@@ -430,5 +430,5 @@ def backup(context):
 
 
     print(
-        "Ambiente Node.js rilevato"
+        "Node.js environment detected"
     )
