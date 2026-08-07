@@ -27,7 +27,7 @@ HOME = Path.home()
 # COMMAND
 # ============================================================
 
-def run_command(command, env=None):
+def run_command(command, env=None) -> dict:
 
     try:
 
@@ -315,7 +315,7 @@ def dump_database(
             check=False,
         )
         with gzip.open(output, "wb") as compressed_file:
-            compressed_file.write(result.stdout)
+            compressed_file.write(result.stdout) # type: ignore
     except OSError as error:
         return {"database": database, "error": str(error)}
 
@@ -349,7 +349,7 @@ def backup(context):
     mysql = find_mysql()
 
 
-    data = {
+    data: dict = {
 
         "installed": False,
 

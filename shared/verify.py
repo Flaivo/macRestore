@@ -5,11 +5,12 @@ from shared.hashing import sha256_file
 from shared.encryption import decrypted_backup, is_encrypted_backup
 
 
+from typing import Any
 
 def verify_backup(
     backup_path,
-    password=None,
-):
+    password: str | None = None,
+) -> dict[str, Any]:
 
     backup_path = Path(
         backup_path

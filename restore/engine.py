@@ -1,6 +1,9 @@
+from contextlib import redirect_stdout
+from io import StringIO
 from pathlib import Path
 from shared.plugin_loader import PluginLoader
 from shared.progress import Spinner
+from shared.report import create_restore_report
 
 class RestoreContext:
     def __init__(self, backup_dir, dry_run=True):
@@ -14,8 +17,9 @@ class RestoreContext:
 
 class RestoreEngine:
 
-    def __init__(self, backup_path, dry_run=True):
+    def __init__(self, backup_path, dry_run=True, report_path=None):
         self.context = RestoreContext(backup_path, dry_run)
+        self.report_path = Path(report_path) if report_path else None
         
         # Usiamo il tuo PluginLoader per mantenere l'architettura condivisa
         self.loader = PluginLoader("restore.modules")
@@ -37,6 +41,7 @@ class RestoreEngine:
         else:
             print("WARNING: LIVE EXECUTION mode active.\n")
 
+        module_results = []
         for module in modules:
             name = module.PLUGIN.get("name", "Unknown")
             
@@ -45,12 +50,34 @@ class RestoreEngine:
 
             spinner = Spinner(f"Restoring {name}")
             spinner.start()
+            output_buffer = StringIO()
             try:
                 # Passiamo il context al modulo!
-                module.restore(self.context)
-                spinner.stop(success=True)
+                with redirect_stdout(output_buffer):
+                    module.restore(self.context)
+                output = output_buffer.getvalue().strip()
+                status = "failed" if "[ERROR]" in output else (
+                    "skipped" if "[SKIP]" in output and "[OK]" not in output else "success"
+                )
+                spinner.stop(success=status != "failed")
+                if output:
+                    print(output)
+                module_results.append({"name": name, "status": status, "output": output})
             except Exception as e:
                 spinner.stop(success=False)
                 print(f"[ERROR] Error while restoring {name}: {e}")
+                module_results.append(
+                    {"name": name, "status": "failed", "error": str(e), "output": output_buffer.getvalue()}
+                )
                 
         print("\nProcess completed.\n")
+        if self.report_path:
+            self.report_path.parent.mkdir(parents=True, exist_ok=True)
+            create_restore_report(
+                self.report_path,
+                self.context.backup_dir.name,
+                self.context.dry_run,
+                module_results,
+            )
+            print(f"Restore report: {self.report_path}")
+        return module_results

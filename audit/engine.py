@@ -13,6 +13,7 @@ from config import BACKUP_DIR
 from shared.checksum import generate_checksums
 from shared.encryption import encrypt_backup_directory, validate_backup_password
 from shared.progress import Spinner
+from shared.report import create_backup_report, create_backup_summary
 
 
 class AuditEngine:
@@ -160,6 +161,8 @@ class AuditEngine:
             manifest
         )
 
+        report_file = create_backup_report(backup_path, manifest)
+
         checksum_spinner = Spinner("Creating checksums")
         checksum_spinner.start()
         checksum_file = generate_checksums(backup_path)
@@ -185,12 +188,24 @@ class AuditEngine:
 
             break
 
-        backup_name = datetime.now().strftime("%Y-%m-%d_%H%M%S.backup")
+        timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M")
+        backup_name = f"{timestamp}.backup"
         encrypted_path = BACKUP_DIR / backup_name
+        duplicate = 1
+        while encrypted_path.exists():
+            encrypted_path = BACKUP_DIR / f"{timestamp}-{duplicate}.backup"
+            duplicate += 1
         encryption_spinner = Spinner("Encrypting backup")
         encryption_spinner.start()
         encrypt_backup_directory(backup_path, encrypted_path, password)
         encryption_spinner.stop(success=True)
+        external_report = encrypted_path.with_suffix(".txt")
+        create_backup_summary(
+            backup_path,
+            manifest,
+            encrypted_path.name,
+            external_report,
+        )
         shutil.rmtree(backup_path)
         self._active_plaintext_backup = None
 
@@ -200,6 +215,7 @@ class AuditEngine:
             "Backup created:",
             encrypted_path
         )
+        print("Backup report:", external_report)
 
 
         return encrypted_path

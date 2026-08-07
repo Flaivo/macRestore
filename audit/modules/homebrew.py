@@ -23,7 +23,7 @@ def backup(context):
     )
 
 
-    data = {
+    data: dict = {
         "installed": False,
         "brew_path": brew_path
     }

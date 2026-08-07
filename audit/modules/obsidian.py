@@ -22,7 +22,7 @@ def ignore_bloat(dir, contents):
     return [item for item in contents if item in bloat_list]
 
 def backup(context):
-    result = {"vaults_backed_up": []}
+    result: dict = {"vaults_backed_up": []}
     
     config_dest = context.config / "obsidian"
     files_dest = context.config.parent / "files" / "obsidian"

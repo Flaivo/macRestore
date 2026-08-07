@@ -19,7 +19,7 @@ PLUGIN = {
 # COMMAND
 # ============================================================
 
-def run_command(command):
+def run_command(command) -> dict:
     try:
         result = subprocess.run(
             command,
@@ -151,7 +151,7 @@ def save_text(context, filename, content):
 # ============================================================
 
 def backup(context): # Rinominato da run() a backup() per matchare il plugin loader
-    result = {
+    result: dict = {
         "installed_apps": [],
         "brew_casks": [],
         "mac_app_store": []

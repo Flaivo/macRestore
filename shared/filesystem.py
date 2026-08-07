@@ -33,13 +33,18 @@ def copy_directory(
 def create_backup_directory(base_path):
 
     timestamp = datetime.now().strftime(
-        "%Y-%m-%d_%H%M%S"
+        "%Y-%m-%d_%H-%M"
     )
 
     backup_path = (
         Path(base_path) /
         timestamp
     )
+
+    duplicate = 1
+    while backup_path.exists():
+        backup_path = Path(base_path) / f"{timestamp}-{duplicate}"
+        duplicate += 1
 
     backup_path.mkdir(
         parents=True,

@@ -119,7 +119,7 @@ def backup(context):
     print(
         "IDE backup completed: "
         f"{'preferences saved' if result['preferences_backed_up'] else 'no preferences found'}, "
-        f"{len(result['extensions'])} extensions recorded."
+        f"{result['extensions_count']} extensions recorded."
     )
 
     return result

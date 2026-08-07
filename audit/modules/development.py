@@ -42,7 +42,7 @@ def command_exists(command):
 
 def backup(context):
 
-    data = {
+    data: dict = {
 
         "runtime": {
 

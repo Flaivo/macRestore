@@ -1,5 +1,5 @@
 Mac Restore - Backup & Recovery Framework
-Version: 1.0.1
+Version: 1.0.2
 A modular Python framework designed for macOS developers to specifically back up and restore configurations, SSH keys, local databases, system keychains, and development environments. It acts as a surgical tool to complement standard full-system backups (like Time Machine), ensuring no unnecessary cache or heavy redundant files are stored, while preserving critical uncommitted data (e.g., .env files) and system preferences.
 Table of Contents
 
@@ -12,12 +12,12 @@ Table of Contents
 7. Adding Backup and Restore Modules
    Overview & Workflow
    The framework operates through two symmetrical engines: Audit (Backup) and Restore (Recovery).
-   - Interactive Selection: Both engines feature an interactive CLI menu allowing the execution of all modules or a specific subset. Target and source directories can be selected via native macOS Finder prompts.
+   - Interactive Selection: `macrestore.py` is the primary CLI entrypoint. Its English menus provide Backup and Restore flows, module selection, backup browsing, detailed inspection, and Back/Exit navigation.
    - Routing & Segregation: Data is automatically sorted based on its nature: lightweight text/configurations are stored separately from heavy binary files or databases.
    - Data Integrity: Every backup generates a manifest.json and a checksums.json (SHA-256) to cryptographically validate file integrity over time.
-   - Encrypted Backups: New backups are compressed and encrypted as a single AES-256-GCM archive. The password is never saved. New passwords must contain at least 8 characters, including an uppercase letter, a lowercase letter, a number, and a special symbol.
+   - Encrypted Backups: New backups are compressed with gzip and encrypted as a single AES-256-GCM archive. The password is never saved. New passwords must contain at least 8 characters, including an uppercase letter, a lowercase letter, a number, and a special symbol.
    - Safe Execution (User Space): The framework operates entirely within the user space (~/). It does not require and should not be run with root or sudo privileges.
-   - Dry-Run by Default: The Restore engine defaults to a simulated execution mode. It calculates paths and displays proposed changes without modifying the disk, preventing accidental data overwrites on fresh installations.
+   - Dry-Run by Default: Restore starts in simulated mode. It calculates paths and displays proposed changes without modifying the disk. A live execution option is available from the Restore menu.
    - Concise Progress: Long-running modules display a terminal spinner and finish with aggregate counts instead of printing every copied file.
    System Requirements
    To allow the Python scripts to access sensitive macOS directories (such as Keychains) and external drives, you must grant the terminal emulator (e.g., Terminal.app, iTerm2, or your IDE's integrated terminal) the appropriate permissions.
@@ -25,36 +25,36 @@ Table of Contents
 8. Toggle the switch to enable access for your terminal application.
    Usage
 9. Creating a Backup (Audit)
-   Launch the audit script to scan and copy files to the default backups/ directory or an external drive. At the end, it asks twice for an encryption password of at least 8 characters containing an uppercase letter, a lowercase letter, a number, and a special symbol. Plaintext data is staged in a hidden `.macrestore-*` system temporary directory with `700` permissions. It is permanently deleted after encryption, leaving only the encrypted `.backup` archive in the destination. If the operation is interrupted, the plaintext staging directory is removed before exit.
-   python3 audit.py
+   Launch the application with `python3 macrestore.py`, choose `1. Backup`, then choose all standard modules or one module. The destination can be the default `./backups/` folder or a Finder-selected folder. At the end, it asks twice for an encryption password of at least 8 characters containing an uppercase letter, a lowercase letter, a number, and a special symbol. Plaintext data is staged in a hidden `.macrestore-*` system temporary directory with `700` permissions. It is permanently deleted after encryption, leaving the compressed and encrypted `.backup` archive plus a non-sensitive text summary with the same timestamp. If the operation is interrupted, the plaintext staging directory is removed before exit.
+   python3 macrestore.py
 
 10. Restoring a Backup (Restore)
-    The restore engine lists all backups found in the default folder, marks the newest one, and lets the user select a backup by number without pressing Enter. Option `0` opens Finder for a folder containing a backup; its contents are then listed for selection. The selected backup name is displayed before the restore-module menu.
-    Simulated Run (Dry-Run):
-    Executes the script safely, printing actions to the console without writing data.
-    python3 restore.py
+    Choose `2. Restore`. The application lists backups in the default folder, marks the newest one, and lets the user select a backup. Finder browsing is available. After selecting a backup:
+    - `1. Restore` opens a mode menu with dry-run or live execution, followed by restore-module selection.
+    - `2. View backup details` asks for the backup password, decrypts the detailed report temporarily, and prints it in the terminal without leaving a plaintext copy on disk.
+    - `0. Back` returns to the previous menu.
 
-Actual Execution:
-Overrides the safety lock and writes data to the system.
-    python3 restore.py --execute
+    Every completed restore, including a dry-run, creates a timestamped plain-text report next to the selected backup. It records the mode, each module result, errors, skipped modules, and the actions printed by the restore modules. After the restore process and report generation finish, the application exits automatically.
 
     Encrypted backups ask for their password before the restore menu. Existing unencrypted backup folders remain supported.
 
-    During restore, the encrypted archive is decrypted only after the correct password is entered, into a hidden `700`-permission temporary directory. That directory is permanently deleted when the restore process ends, leaving the encrypted archive as the only backup artifact.
+    During restore, the encrypted archive is decrypted only after the correct password is entered, into a hidden `700`-permission temporary directory. That directory is permanently deleted when the restore process ends; the encrypted archive and its non-sensitive summary remain in the backup location.
 
 Backup Structure
-Each backup generates a timestamped directory (e.g., 2026-08-04_115708/) containing a strictly organized tree:
+Each backup is named `YYYY-MM-DD_HH-MM.backup` (for example, `2026-08-07_10-35.backup`). The adjacent `YYYY-MM-DD_HH-MM.txt` file is a non-sensitive summary. If multiple backups are created in the same minute, a numeric suffix is added to avoid overwriting an existing backup. The encrypted archive contains a strictly organized tree:
 Directory/File Content & Purpose
 inventory/ Generated .json metadata files from each module. Contains execution logs, file counts, and original system paths.
 backup_config/ Plain text configurations. Stores .zshrc, Brewfile, IDE .json settings, and system analysis logs.
 files/ Heavyweight and binary data. Stores SQL dumps, Obsidian Vaults, Keychain databases (.keychain-db), SSH keys, and VPN profiles.
 manifest.json Overall backup metadata (timestamp, user, system info).
 checksums.json Cryptographic hashes for validating the integrity of the backed-up files.
+backup_report.md Detailed report stored inside the encrypted archive; it contains module outcomes, inventory details, file actions, sizes, and modification timestamps. It is not exposed as plaintext beside the archive.
+YYYY-MM-DD_HH-MM_restore_YYYY-MM-DD_HH-MM.txt External restore report generated after every completed restore or dry-run.
 Core Components
-- audit.py & restore.py: The main entry points. They handle the CLI interface, parsing arguments, displaying mode warnings (Dry-Run vs. Real), and triggering native AppleScript prompts.
+- macrestore.py: The main interactive entry point for Backup and Restore. The legacy audit.py and restore.py scripts remain available for direct/advanced use.
 - config.py: Intercepts environment variables set by the CLI and defines absolute paths for the entire project.
 - audit/engine.py & restore/engine.py: The core processors. They dynamically load plugins from the modules/ directories, isolate execution environments, and manage directory mapping (Context).
-- shared/: Shared libraries utilized by both engines (inventory.py for logging, checksum.py for cryptography, verify.py for validation, and plugin_loader.py).
+- shared/: Shared libraries utilized by both engines (inventory.py for logging, encryption.py for archive encryption, checksum.py for hashes, verify.py for validation, report.py for summaries, and plugin_loader.py).
 Modules Directory
 Modules are independent, domain-specific scripts. The Backup phase consists of 19 modules, while the Restore phase consists of 16 modules. The `disk_usage` backup module is optional and is excluded from the default "all standard modules" selection; its report is handled by `system_lists` during restore. The Restore phase also skips the hardware snapshot (`system`).
 The Restore phase utilizes two distinct deployment strategies:
@@ -84,7 +84,7 @@ System & Maintenance
 - development.py: Backs up and injects shell initialization files (.zshrc).
 - system_lists.py (Restore Only): Consolidates the output of the applications, homebrew, and disk_usage backup modules. Generates a folder on the Desktop containing the Brewfile and plain-text application lists for rapid system provisioning.
 Mac Restore - Backup & Recovery Framework (Italiano)
-Versione: 1.0.0
+Versione: 1.0.2
 Un framework modulare in Python progettato per gli sviluppatori macOS per il backup e il ripristino mirato di configurazioni, chiavi SSH, database locali, portachiavi di sistema e ambienti di sviluppo. Agisce come uno strumento chirurgico per integrare i backup completi di sistema (come Time Machine), assicurando che non vengano archiviate cache inutili o file pesanti ridondanti, preservando al contempo dati critici non tracciati (es. file .env) e le preferenze di sistema.
 Indice
 
@@ -96,12 +96,12 @@ Indice
 6. Elenco Moduli
    Panoramica e Flusso di Lavoro
    Il framework opera attraverso due motori simmetrici: Audit (Salvataggio) e Restore (Ripristino).
-   - Selezione Interattiva: Entrambi i motori dispongono di un menu CLI interattivo che consente l'esecuzione di tutti i moduli o di un sottoinsieme specifico. Le directory di origine e destinazione possono essere selezionate tramite finestre native del Finder di macOS.
+   - Selezione Interattiva: `macrestore.py` è il punto di ingresso CLI principale. I suoi menu in inglese offrono i flussi Backup e Restore, la selezione dei moduli, la scelta dei backup, l'ispezione dettagliata e la navigazione Back/Exit.
    - Routing e Separazione: I dati vengono smistati automaticamente in base alla loro natura: configurazioni leggere di testo vengono separate da file binari pesanti o database.
    - Integrità dei Dati: Ogni backup genera un manifest.json e un checksums.json (SHA-256) per validare crittograficamente l'integrità dei file nel tempo.
-   - Backup Cifrati: I nuovi backup vengono compressi e cifrati in un unico archivio AES-256-GCM. La password non viene mai salvata. Deve avere almeno 8 caratteri, una maiuscola, una minuscola, un numero e un simbolo speciale.
+   - Backup Cifrati: I nuovi backup vengono compressi con gzip e cifrati in un unico archivio AES-256-GCM. La password non viene mai salvata. Deve avere almeno 8 caratteri, una maiuscola, una minuscola, un numero e un simbolo speciale.
    - Esecuzione Sicura (User Space): Il framework opera interamente all'interno dello spazio utente (~/). Non richiede e non deve essere eseguito con privilegi di root o sudo.
-   - Dry-Run di Default: Il motore di ripristino è preimpostato su una modalità di esecuzione simulata. Calcola i percorsi e mostra a schermo le modifiche proposte senza scrivere sul disco, prevenendo la sovrascrittura accidentale di dati su installazioni pulite.
+   - Dry-Run di Default: Il restore parte in modalità simulata. Calcola i percorsi e mostra le modifiche proposte senza modificare il disco. Dal menu Restore è disponibile anche l'esecuzione reale.
    - Avanzamento Sintetico: I moduli lunghi mostrano uno spinner nel terminale e terminano con conteggi aggregati invece di stampare ogni file copiato.
    Requisiti di Sistema
    Per consentire agli script Python di accedere a directory sensibili di macOS (come i Portachiavi) e alle unità esterne, è necessario concedere all'emulatore di terminale (es. Terminale.app, iTerm2 o il terminale integrato nell'IDE) i permessi appropriati.
@@ -109,34 +109,34 @@ Indice
 8. Attivare l'interruttore per abilitare l'accesso per l'applicazione terminale utilizzata.
    Utilizzo
 9. Creare un Backup (Audit)
-   Avviare lo script di audit per scansionare e copiare i file nella directory predefinita backups/ o su un disco esterno. Al termine viene richiesta due volte una password di almeno 8 caratteri, con maiuscola, minuscola, numero e simbolo speciale. I dati in chiaro vengono preparati in una directory temporanea di sistema nascosta `.macrestore-*`, con permessi `700`. Dopo la cifratura viene eliminata definitivamente e nella destinazione rimane solo l'archivio `.backup`. Se l'operazione viene interrotta, la directory temporanea viene rimossa prima dell'uscita.
-   python3 audit.py
+   Avviare l'applicazione con `python3 macrestore.py`, scegliere `1. Backup`, quindi tutti i moduli standard oppure un singolo modulo. La destinazione può essere la cartella predefinita `./backups/` o una cartella scelta tramite Finder. Al termine viene richiesta due volte una password di almeno 8 caratteri, con maiuscola, minuscola, numero e simbolo speciale. I dati in chiaro vengono preparati in una directory temporanea di sistema nascosta `.macrestore-*`, con permessi `700`. Dopo la cifratura viene eliminata definitivamente e nella destinazione rimangono l'archivio `.backup` compresso e cifrato e un riepilogo testuale non sensibile con lo stesso timestamp. Se l'operazione viene interrotta, la directory temporanea viene rimossa prima dell'uscita.
+   python3 macrestore.py
 
 10. Ripristinare un Backup (Restore)
-    Il motore di ripristino elenca tutti i backup presenti nella directory predefinita, evidenzia quello più recente e consente di selezionare il backup tramite numero senza premere Invio. L'opzione `0` apre il Finder per scegliere una cartella contenente un backup; il contenuto viene poi elencato per la selezione. Il nome del backup scelto viene mostrato prima del menu dei moduli.
-    Esecuzione Simulata (Dry-Run):
-    Esegue lo script in sicurezza, stampando le azioni nella console senza scrivere alcun dato.
-    python3 restore.py
+    Scegliere `2. Restore`. L'applicazione elenca i backup nella cartella predefinita, evidenzia quello più recente e consente di selezionarlo. È disponibile anche la navigazione tramite Finder. Dopo la selezione:
+    - `1. Restore` apre il menu della modalità dry-run o reale, seguito dalla selezione dei moduli da ripristinare.
+    - `2. View backup details` richiede la password del backup, decritta temporaneamente il report dettagliato e lo mostra nel terminale senza lasciare una copia in chiaro sul disco.
+    - `0. Back` torna al menu precedente.
 
-Esecuzione Reale:
-Disabilita il blocco di sicurezza e scrive fisicamente i dati sul sistema.
-python3 restore.py --execute
+    Ogni restore completato, compreso il dry-run, genera accanto al backup selezionato un report testuale con timestamp. Il report indica la modalità, l'esito di ogni modulo, gli errori, i moduli saltati e le azioni eseguite o previste. Al termine del restore e della generazione del report l'applicazione si chiude automaticamente.
 
-I backup cifrati richiedono la password prima del menu di ripristino. Solo dopo l'inserimento corretto vengono decrittati in una directory temporanea nascosta con permessi `700`, eliminata definitivamente alla fine del processo. Nella destinazione rimane solo l'archivio `.backup`. Le cartelle di backup non cifrate esistenti restano supportate.
+I backup cifrati richiedono la password prima del menu di ripristino. Solo dopo l'inserimento corretto vengono decrittati in una directory temporanea nascosta con permessi `700`, eliminata definitivamente alla fine del processo. Nella destinazione rimangono l'archivio `.backup` e il riepilogo non sensibile. Le cartelle di backup non cifrate esistenti restano supportate.
 
 Struttura del Backup
-Ogni backup genera una directory provvista di timestamp (es. 2026-08-04_115708/) contenente un albero rigorosamente organizzato:
+Ogni backup ha il nome `YYYY-MM-DD_HH-MM.backup` (per esempio `2026-08-07_10-35.backup`). Il file `YYYY-MM-DD_HH-MM.txt` adiacente è un riepilogo non sensibile. Se vengono creati più backup nello stesso minuto, viene aggiunto un suffisso numerico per evitare sovrascritture. L'archivio cifrato contiene un albero rigorosamente organizzato:
 Directory/File Contenuto e Scopo
 inventory/ File metadati .json generati da ciascun modulo. Contengono log di esecuzione, conteggio dei file e percorsi di sistema originali.
 backup_config/ Configurazioni in testo puro. Archivia .zshrc, Brewfile, impostazioni .json degli IDE e log di analisi del sistema.
 files/ Dati pesanti e binari. Archivia dump SQL, Vault di Obsidian, database dei Portachiavi (.keychain-db), chiavi SSH e profili VPN.
 manifest.json Metadati complessivi del backup (timestamp, utente, info di sistema).
 checksums.json Hash crittografici per convalidare l'integrità dei file salvati.
+backup_report.md Report dettagliato conservato dentro l'archivio cifrato: contiene esiti dei moduli, inventory, azioni, dimensioni e timestamp di modifica. Non viene esposto in chiaro accanto all'archivio.
+YYYY-MM-DD_HH-MM_restore_YYYY-MM-DD_HH-MM.txt Report esterno generato dopo ogni restore completato o dry-run.
 Componenti Core
-- audit.py & restore.py: I punti di ingresso principali. Gestiscono l'interfaccia CLI, il parsing degli argomenti, la visualizzazione degli avvisi di modalità (Dry-Run vs. Reale) e l'attivazione dei prompt nativi AppleScript.
+- macrestore.py: Il punto di ingresso interattivo principale per Backup e Restore. Gli script legacy audit.py e restore.py restano disponibili per l'uso diretto o avanzato.
 - config.py: Intercetta le variabili d'ambiente impostate dalla CLI e definisce i percorsi assoluti per l'intero progetto.
 - audit/engine.py & restore/engine.py: I processori centrali. Caricano dinamicamente i plugin dalle directory modules/, isolano gli ambienti di esecuzione e gestiscono la mappatura delle directory (Context).
-- shared/: Librerie condivise utilizzate da entrambi i motori (inventory.py per il logging, checksum.py per la crittografia, verify.py per la validazione e plugin_loader.py).
+- shared/: Librerie condivise utilizzate da entrambi i motori (inventory.py per il logging, encryption.py per la cifratura degli archivi, checksum.py per gli hash, verify.py per la validazione, report.py per i riepiloghi e plugin_loader.py).
 Elenco Moduli
 I moduli sono script indipendenti e specifici per dominio. La fase di Backup è composta da 19 moduli, mentre la fase di Restore da 16 moduli. Il modulo di backup `disk_usage` è opzionale ed escluso dalla scelta predefinita "tutti i moduli standard"; il suo report viene gestito da `system_lists` durante il restore. Il restore omette inoltre lo snapshot hardware (`system`).
 La fase di Restore utilizza due strategie di distribuzione distinte:
@@ -174,13 +174,15 @@ Modules are discovered automatically. A new backup module belongs in `audit/modu
 
 ```mermaid
 flowchart LR
-    CLI["audit.py or restore.py"] --> Loader["PluginLoader"]
+    CLI["macrestore.py"] --> Loader["PluginLoader"]
     Loader --> Audit["audit/modules/*.py"]
     Loader --> Restore["restore/modules/*.py"]
     Audit --> BackupContext["BackupContext"]
     Restore --> RestoreContext["RestoreContext"]
-    BackupContext --> Archive["Manifest and encrypted .backup"]
+    BackupContext --> Archive["Compressed and encrypted .backup"]
+    Archive --> Summary["Non-sensitive .txt summary"]
     RestoreContext --> System["macOS user files or Desktop output"]
+    RestoreContext --> RestoreReport["Timestamped restore .txt report"]
 ```
 
 ### Module naming and plugin metadata
@@ -288,7 +290,7 @@ The restore context exposes these paths:
 | `context.inventory_dir` | `inventory/` metadata |
 | `context.config_dir` | `backup_config/` text and configuration files |
 | `context.files_dir` | `files/` binary or larger files |
-| `context.dry_run` | `True` unless `restore.py --execute` is used |
+| `context.dry_run` | `True` unless live execution is selected in the `macrestore.py` Restore menu |
 
 For data that cannot be safely injected automatically, extract it to a clearly named Desktop folder and explain the manual next step. Never silently overwrite important existing data; create a `.pre-restore` copy when direct replacement is necessary.
 
@@ -301,10 +303,13 @@ flowchart TD
     Temp --> Module["Run backup(context)"]
     Module --> Config["Write backup_config, files, inventory"]
     Config --> Manifest["Write manifest and checksums"]
-    Manifest --> Password["Validate password"]
-    Password --> Encrypt["Create encrypted .backup archive"]
+    Manifest --> Detailed["Write detailed backup_report.md"]
+    Detailed --> Password["Validate password"]
+    Password --> Compress["Compress with gzip"]
+    Compress --> Encrypt["Encrypt as .backup archive"]
+    Encrypt --> Summary["Write non-sensitive timestamped .txt summary"]
     Encrypt --> Delete["Delete plaintext staging directory"]
-    Delete --> Done["Only encrypted archive remains"]
+    Delete --> Done["Encrypted archive and summary remain"]
 ```
 
 ### Restore data flow
@@ -318,22 +323,26 @@ flowchart TD
     Verify --> Load
     Load --> Temp["Use hidden 700 temporary restore directory"]
     Temp --> Modules["Run selected restore modules"]
+    Modules --> Report["Write timestamped restore .txt report"]
     Modules --> Mode{"Dry-run?"}
     Mode -- "yes" --> Preview["Print planned actions only"]
     Mode -- "no" --> Apply["Write files or Desktop exports"]
     Preview --> Cleanup["Delete temporary decrypted data"]
     Apply --> Cleanup
+    Cleanup --> Exit["Exit application after completion"]
 ```
 
 ### Backup layout
 
 ```mermaid
 flowchart TD
-    Root["timestamp.backup"] --> Inventory["inventory/"]
+    Root["YYYY-MM-DD_HH-MM.backup"] --> Inventory["inventory/"]
     Root --> Config["backup_config/"]
     Root --> Files["files/"]
     Root --> Manifest["manifest.json"]
     Root --> Checksums["checksums.json"]
+    Root --> Detailed["backup_report.md"]
+    External["YYYY-MM-DD_HH-MM.txt"] --> Summary["Non-sensitive external summary"]
     Inventory --> Metadata["module JSON metadata"]
     Config --> Text["text and configuration files"]
     Files --> Binary["keys, databases, profiles, binary data"]
@@ -361,4 +370,3 @@ flowchart LR
 ```
 
 <img width="120" height="72" alt="JimmoWasSmall" src="https://github.com/user-attachments/assets/3ae79e19-f922-4b0e-9135-56e4b83602bc" />
-
