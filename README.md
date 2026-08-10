@@ -1,5 +1,6 @@
-Mac Restore - Backup & Recovery Framework
+Mac Restore - Backup & Recovery Framework [ENG]
 Version: 1.0.2
+
 A modular Python framework designed for macOS developers to specifically back up and restore configurations, SSH keys, local databases, system keychains, and development environments. It acts as a surgical tool to complement standard full-system backups (like Time Machine), ensuring no unnecessary cache or heavy redundant files are stored, while preserving critical uncommitted data (e.g., .env files) and system preferences.
 Table of Contents
 
@@ -87,6 +88,8 @@ Mac Restore - Backup & Recovery Framework (Italiano)
 Versione: 1.0.2
 Un framework modulare in Python progettato per gli sviluppatori macOS per il backup e il ripristino mirato di configurazioni, chiavi SSH, database locali, portachiavi di sistema e ambienti di sviluppo. Agisce come uno strumento chirurgico per integrare i backup completi di sistema (come Time Machine), assicurando che non vengano archiviate cache inutili o file pesanti ridondanti, preservando al contempo dati critici non tracciati (es. file .env) e le preferenze di sistema.
 Indice
+
+Mac Restore - Backup & Recovery Framework [ITA]
 
 1. Panoramica e Flusso di Lavoro
 2. Requisiti di Sistema
