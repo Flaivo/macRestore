@@ -1,5 +1,5 @@
 Mac Restore - Backup & Recovery Framework [ENG]
-Version: 1.0.2
+Version: 1.0.3
 
 A modular Python framework designed for macOS developers to specifically back up and restore configurations, SSH keys, local databases, system keychains, and development environments. It acts as a surgical tool to complement standard full-system backups (like Time Machine), ensuring no unnecessary cache or heavy redundant files are stored, while preserving critical uncommitted data (e.g., .env files) and system preferences.
 Table of Contents
@@ -74,7 +74,7 @@ Web Development, Projects & Databases
 - workbench.py: Backs up and injects connections.xml to restore MySQL Workbench server credentials and hosts.
 - node.py: Backs up and injects global configurations (.npmrc, .yarnrc) and extracts JSON lists of globally installed packages.
 Mobile Development & IDEs
-- mobile_dev.py: Injects Android debug.keystore and Xcode Provisioning Profiles into system paths; safely extracts production .jks keys to the Desktop.
+- mobile_dev.py: Injects Android debug.keystore and Xcode Provisioning Profiles into system paths; safely extracts production .jks keys to the Desktop. Backs up lightweight Android AVD configuration profiles (~/.android/avd/*.ini and config.ini), iOS simulator catalogs (via xcrun simctl), and generates reconstruction scripts/instructions (recreate_emulators.sh / recreate_emulators.md) directly inside the encrypted backup archive. On restore, reinstalls AVD configs and puts the recreation script into ~/.android/.
 - antigravity.py: Injects settings.json, keybindings, and snippets for IDEs (VS Code, Trae). Extracts the extension list (extensions.txt) to the Desktop.
 Browsers & Remote Tools
 - browser.py: Backs up and injects configurations for Google Chrome and Arc Browser. It separates encrypted login databases from standard preferences during backup, merging them back accurately during restore.
@@ -85,7 +85,7 @@ System & Maintenance
 - development.py: Backs up and injects shell initialization files (.zshrc).
 - system_lists.py (Restore Only): Consolidates the output of the applications, homebrew, and disk_usage backup modules. Generates a folder on the Desktop containing the Brewfile and plain-text application lists for rapid system provisioning.
 Mac Restore - Backup & Recovery Framework (Italiano)
-Versione: 1.0.2
+Versione: 1.0.3
 Un framework modulare in Python progettato per gli sviluppatori macOS per il backup e il ripristino mirato di configurazioni, chiavi SSH, database locali, portachiavi di sistema e ambienti di sviluppo. Agisce come uno strumento chirurgico per integrare i backup completi di sistema (come Time Machine), assicurando che non vengano archiviate cache inutili o file pesanti ridondanti, preservando al contempo dati critici non tracciati (es. file .env) e le preferenze di sistema.
 Indice
 
@@ -158,7 +158,7 @@ Sviluppo Web, Progetti e Database
 - workbench.py: Salva e inietta connections.xml per ripristinare credenziali e host di MySQL Workbench.
 - node.py: Salva e inietta le configurazioni globali (.npmrc, .yarnrc) ed estrae liste JSON dei pacchetti installati globalmente.
 Sviluppo Mobile & IDE
-- mobile_dev.py: Inietta il debug.keystore Android e i Provisioning Profiles Xcode nei percorsi di sistema; estrae in sicurezza le chiavi .jks di produzione sulla Scrivania.
+- mobile_dev.py: Inietta il debug.keystore Android e i Provisioning Profiles Xcode nei percorsi di sistema; estrae in sicurezza le chiavi .jks di produzione sulla Scrivania. Esegue il backup dei profili di configurazione leggeri degli AVD Android (~/.android/avd/*.ini e config.ini), dei cataloghi simulatori iOS (tramite xcrun simctl) e genera script e guide di ricostruzione (recreate_emulators.sh / recreate_emulators.md) direttamente all'interno dell'archivio cifrato di backup. Al ripristino, reinstalla le configurazioni AVD e posiziona lo script di ricreazione in ~/.android/.
 - antigravity.py: Inietta settings.json, scorciatoie da tastiera e snippet per IDE (VS Code, Trae). Estrae l'elenco delle estensioni (extensions.txt) sulla Scrivania.
 Browser & Remote Tools
 - browser.py: Salva e inietta le configurazioni per Google Chrome e Arc Browser. Separa i database delle password crittografate dalle preferenze standard durante il backup, unendoli nuovamente in modo accurato durante il ripristino.
