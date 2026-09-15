@@ -1,5 +1,5 @@
 Mac Restore - Backup & Recovery Framework [ENG]
-Version: 1.0.3
+Version: 1.0.4
 
 A modular Python framework designed for macOS developers to specifically back up and restore configurations, SSH keys, local databases, system keychains, and development environments. It acts as a surgical tool to complement standard full-system backups (like Time Machine), ensuring no unnecessary cache or heavy redundant files are stored, while preserving critical uncommitted data (e.g., .env files) and system preferences.
 Table of Contents
@@ -13,23 +13,23 @@ Table of Contents
 7. Adding Backup and Restore Modules
    Overview & Workflow
    The framework operates through two symmetrical engines: Audit (Backup) and Restore (Recovery).
-   - Interactive Selection: `macrestore.py` is the primary CLI entrypoint. Its English menus provide Backup and Restore flows, module selection, backup browsing, detailed inspection, and Back/Exit navigation.
-   - Routing & Segregation: Data is automatically sorted based on its nature: lightweight text/configurations are stored separately from heavy binary files or databases.
-   - Data Integrity: Every backup generates a manifest.json and a checksums.json (SHA-256) to cryptographically validate file integrity over time.
-   - Encrypted Backups: New backups are compressed with gzip and encrypted as a single AES-256-GCM archive. The password is never saved. New passwords must contain at least 8 characters, including an uppercase letter, a lowercase letter, a number, and a special symbol.
-   - Safe Execution (User Space): The framework operates entirely within the user space (~/). It does not require and should not be run with root or sudo privileges.
-   - Dry-Run by Default: Restore starts in simulated mode. It calculates paths and displays proposed changes without modifying the disk. A live execution option is available from the Restore menu.
-   - Concise Progress: Long-running modules display a terminal spinner and finish with aggregate counts instead of printing every copied file.
-   System Requirements
-   To allow the Python scripts to access sensitive macOS directories (such as Keychains) and external drives, you must grant the terminal emulator (e.g., Terminal.app, iTerm2, or your IDE's integrated terminal) the appropriate permissions.
-7. Open System Settings > Privacy & Security > Full Disk Access.
-8. Toggle the switch to enable access for your terminal application.
+    - Interactive Selection: `macrestore.py` is the primary CLI entrypoint. Its English menus provide Backup and Restore flows, module selection, backup browsing, detailed inspection, and Back/Exit navigation.
+    - Routing & Segregation: Data is automatically sorted based on its nature: lightweight text/configurations are stored separately from heavy binary files or databases.
+    - Data Integrity: Every backup generates a manifest.json and a checksums.json (SHA-256) to cryptographically validate file integrity over time.
+    - Encrypted Backups: New backups are compressed with gzip and encrypted as a single AES-256-GCM archive. The password is never saved. New passwords must contain at least 8 characters, including an uppercase letter, a lowercase letter, a number, and a special symbol.
+    - Safe Execution (User Space): The framework operates entirely within the user space (~/). It does not require and should not be run with root or sudo privileges.
+    - Dry-Run by Default: Restore starts in simulated mode. It calculates paths and displays proposed changes without modifying the disk. A live execution option is available from the Restore menu.
+    - Concise Progress: Long-running modules display a terminal spinner and finish with aggregate counts instead of printing every copied file.
+      System Requirements
+      To allow the Python scripts to access sensitive macOS directories (such as Keychains) and external drives, you must grant the terminal emulator (e.g., Terminal.app, iTerm2, or your IDE's integrated terminal) the appropriate permissions.
+8. Open System Settings > Privacy & Security > Full Disk Access.
+9. Toggle the switch to enable access for your terminal application.
    Usage
-9. Creating a Backup (Audit)
-   Launch the application with `python3 macrestore.py`, choose `1. Backup`, then choose all standard modules or one module. The destination can be the default `./backups/` folder or a Finder-selected folder. At the end, it asks twice for an encryption password of at least 8 characters containing an uppercase letter, a lowercase letter, a number, and a special symbol. Plaintext data is staged in a hidden `.macrestore-*` system temporary directory with `700` permissions. It is permanently deleted after encryption, leaving the compressed and encrypted `.backup` archive plus a non-sensitive text summary with the same timestamp. If the operation is interrupted, the plaintext staging directory is removed before exit.
-   python3 macrestore.py
+10. Creating a Backup (Audit)
+    Launch the application with `python3 macrestore.py`, choose `1. Backup`, then choose all standard modules or one module. The destination can be the default `./backups/` folder or a Finder-selected folder. At the end, it asks twice for an encryption password of at least 8 characters containing an uppercase letter, a lowercase letter, a number, and a special symbol. Plaintext data is staged in a hidden `.macrestore-*` system temporary directory with `700` permissions. It is permanently deleted after encryption, leaving the compressed and encrypted `.backup` archive plus a non-sensitive text summary with the same timestamp. If the operation is interrupted, the plaintext staging directory is removed before exit.
+    python3 macrestore.py
 
-10. Restoring a Backup (Restore)
+11. Restoring a Backup (Restore)
     Choose `2. Restore`. The application lists backups in the default folder, marks the newest one, and lets the user select a backup. Finder browsing is available. After selecting a backup:
     - `1. Restore` opens a mode menu with dry-run or live execution, followed by restore-module selection.
     - `2. View backup details` asks for the backup password, decrypts the detailed report temporarily, and prints it in the terminal without leaving a plaintext copy on disk.
@@ -52,42 +52,43 @@ checksums.json Cryptographic hashes for validating the integrity of the backed-u
 backup_report.md Detailed report stored inside the encrypted archive; it contains module outcomes, inventory details, file actions, sizes, and modification timestamps. It is not exposed as plaintext beside the archive.
 YYYY-MM-DD_HH-MM_restore_YYYY-MM-DD_HH-MM.txt External restore report generated after every completed restore or dry-run.
 Core Components
+
 - macrestore.py: The main interactive entry point for Backup and Restore. The legacy audit.py and restore.py scripts remain available for direct/advanced use.
 - config.py: Intercepts environment variables set by the CLI and defines absolute paths for the entire project.
 - audit/engine.py & restore/engine.py: The core processors. They dynamically load plugins from the modules/ directories, isolate execution environments, and manage directory mapping (Context).
 - shared/: Shared libraries utilized by both engines (inventory.py for logging, encryption.py for archive encryption, checksum.py for hashes, verify.py for validation, report.py for summaries, and plugin_loader.py).
-Modules Directory
-Modules are independent, domain-specific scripts. The Backup phase consists of 19 modules, while the Restore phase consists of 16 modules. The `disk_usage` backup module is optional and is excluded from the default "all standard modules" selection; its report is handled by `system_lists` during restore. The Restore phase also skips the hardware snapshot (`system`).
-The Restore phase utilizes two distinct deployment strategies:
+  Modules Directory
+  Modules are independent, domain-specific scripts. The Backup phase consists of 19 modules, while the Restore phase consists of 16 modules. The `disk_usage` backup module is optional and is excluded from the default "all standard modules" selection; its report is handled by `system_lists` during restore. The Restore phase also skips the hardware snapshot (`system`).
+  The Restore phase utilizes two distinct deployment strategies:
 - Direct Injection: Files are injected directly into their original macOS system paths.
 - Safe Extraction: Files requiring manual import or third-party software installation (e.g., Databases, VPNs) are extracted to organized folders on the ~/Desktop.
 - vmware.py: Records VMware Fusion `.vmwarevm` bundle locations and validates them during restore. It intentionally does not copy virtual disks; the bundle remains on the external drive.
-Security & Access
-Plaintext staging and restore directories are hidden from casual browsing and restricted to the current user with filesystem mode `700`. No special system permission is required to use the system temporary directory. Full Disk Access may still be required for protected backup sources such as Keychains and application data.
+  Security & Access
+  Plaintext staging and restore directories are hidden from casual browsing and restricted to the current user with filesystem mode `700`. No special system permission is required to use the system temporary directory. Full Disk Access may still be required for protected backup sources such as Keychains and application data.
 - password.py: Backs up and directly injects macOS Keychains (login.keychain-db). Creates a pre-restore backup of the existing keychain to prevent lockouts.
 - ssh.py: Backs up and directly injects public/private keys and configs. Crucial: Dynamically enforces 700 permissions on ~/.ssh and 600 on key files to satisfy OpenSSH security requirements.
 - vpn.py: Safely extracts Tunnelblick (.tblk) and OpenVPN (.ovpn) profiles to the Desktop for manual re-import.
-Web Development, Projects & Databases
+  Web Development, Projects & Databases
 - git.py: Backs up and injects the global .gitconfig.
 - git_ignored.py: Backs up uncommitted local files (e.g., .env) while ignoring node_modules or build artifacts. On restore, it directly injects the entire tree over the home directory, dropping secret files into their exact respective Git repository folders.
 - mysql.py: Backs up local databases (excluding system DBs) into .sql.gz archives and safely extracts them to the Desktop.
 - workbench.py: Backs up and injects connections.xml to restore MySQL Workbench server credentials and hosts.
 - node.py: Backs up and injects global configurations (.npmrc, .yarnrc) and extracts JSON lists of globally installed packages.
-Mobile Development & IDEs
-- mobile_dev.py: Injects Android debug.keystore and Xcode Provisioning Profiles into system paths; safely extracts production .jks keys to the Desktop. Backs up lightweight Android AVD configuration profiles (~/.android/avd/*.ini and config.ini), iOS simulator catalogs (via xcrun simctl), and generates reconstruction scripts/instructions (recreate_emulators.sh / recreate_emulators.md) directly inside the encrypted backup archive. On restore, reinstalls AVD configs and puts the recreation script into ~/.android/.
+  Mobile Development & IDEs
+- mobile_dev.py: Injects Android debug.keystore and Xcode Provisioning Profiles into system paths; safely extracts production .jks keys to the Desktop. Backs up lightweight Android AVD configuration profiles (~/.android/avd/\*.ini and config.ini), iOS simulator catalogs (via xcrun simctl), and generates reconstruction scripts/instructions (recreate_emulators.sh / recreate_emulators.md) directly inside the encrypted backup archive. On restore, reinstalls AVD configs and puts the recreation script into ~/.android/.
 - antigravity.py: Injects settings.json, keybindings, and snippets for IDEs (VS Code, Trae). Extracts the extension list (extensions.txt) to the Desktop.
-Browsers & Remote Tools
+  Browsers & Remote Tools
 - browser.py: Backs up and injects configurations for Google Chrome and Arc Browser. It separates encrypted login databases from standard preferences during backup, merging them back accurately during restore.
 - remote_tools.py: Backs up and surgically injects configuration directories and .plist preferences for Termius, AnyDesk, TeamViewer, and FileZilla.
-Productivity & Notes
+  Productivity & Notes
 - obsidian.py: Reads Obsidian registry to locate Vaults. Backs them up while omitting heavy Electron caches (Crashpad, GPUCache). On restore, injects global preferences and extracts the Vaults to the Desktop.
-System & Maintenance
+  System & Maintenance
 - development.py: Backs up and injects shell initialization files (.zshrc).
 - system_lists.py (Restore Only): Consolidates the output of the applications, homebrew, and disk_usage backup modules. Generates a folder on the Desktop containing the Brewfile and plain-text application lists for rapid system provisioning.
-Mac Restore - Backup & Recovery Framework (Italiano)
-Versione: 1.0.3
-Un framework modulare in Python progettato per gli sviluppatori macOS per il backup e il ripristino mirato di configurazioni, chiavi SSH, database locali, portachiavi di sistema e ambienti di sviluppo. Agisce come uno strumento chirurgico per integrare i backup completi di sistema (come Time Machine), assicurando che non vengano archiviate cache inutili o file pesanti ridondanti, preservando al contempo dati critici non tracciati (es. file .env) e le preferenze di sistema.
-Indice
+  Mac Restore - Backup & Recovery Framework (Italiano)
+  Versione: 1.0.4
+  Un framework modulare in Python progettato per gli sviluppatori macOS per il backup e il ripristino mirato di configurazioni, chiavi SSH, database locali, portachiavi di sistema e ambienti di sviluppo. Agisce come uno strumento chirurgico per integrare i backup completi di sistema (come Time Machine), assicurando che non vengano archiviate cache inutili o file pesanti ridondanti, preservando al contempo dati critici non tracciati (es. file .env) e le preferenze di sistema.
+  Indice
 
 Mac Restore - Backup & Recovery Framework [ITA]
 
@@ -99,15 +100,15 @@ Mac Restore - Backup & Recovery Framework [ITA]
 6. Elenco Moduli
    Panoramica e Flusso di Lavoro
    Il framework opera attraverso due motori simmetrici: Audit (Salvataggio) e Restore (Ripristino).
-   - Selezione Interattiva: `macrestore.py` è il punto di ingresso CLI principale. I suoi menu in inglese offrono i flussi Backup e Restore, la selezione dei moduli, la scelta dei backup, l'ispezione dettagliata e la navigazione Back/Exit.
-   - Routing e Separazione: I dati vengono smistati automaticamente in base alla loro natura: configurazioni leggere di testo vengono separate da file binari pesanti o database.
-   - Integrità dei Dati: Ogni backup genera un manifest.json e un checksums.json (SHA-256) per validare crittograficamente l'integrità dei file nel tempo.
-   - Backup Cifrati: I nuovi backup vengono compressi con gzip e cifrati in un unico archivio AES-256-GCM. La password non viene mai salvata. Deve avere almeno 8 caratteri, una maiuscola, una minuscola, un numero e un simbolo speciale.
-   - Esecuzione Sicura (User Space): Il framework opera interamente all'interno dello spazio utente (~/). Non richiede e non deve essere eseguito con privilegi di root o sudo.
-   - Dry-Run di Default: Il restore parte in modalità simulata. Calcola i percorsi e mostra le modifiche proposte senza modificare il disco. Dal menu Restore è disponibile anche l'esecuzione reale.
-   - Avanzamento Sintetico: I moduli lunghi mostrano uno spinner nel terminale e terminano con conteggi aggregati invece di stampare ogni file copiato.
-   Requisiti di Sistema
-   Per consentire agli script Python di accedere a directory sensibili di macOS (come i Portachiavi) e alle unità esterne, è necessario concedere all'emulatore di terminale (es. Terminale.app, iTerm2 o il terminale integrato nell'IDE) i permessi appropriati.
+    - Selezione Interattiva: `macrestore.py` è il punto di ingresso CLI principale. I suoi menu in inglese offrono i flussi Backup e Restore, la selezione dei moduli, la scelta dei backup, l'ispezione dettagliata e la navigazione Back/Exit.
+    - Routing e Separazione: I dati vengono smistati automaticamente in base alla loro natura: configurazioni leggere di testo vengono separate da file binari pesanti o database.
+    - Integrità dei Dati: Ogni backup genera un manifest.json e un checksums.json (SHA-256) per validare crittograficamente l'integrità dei file nel tempo.
+    - Backup Cifrati: I nuovi backup vengono compressi con gzip e cifrati in un unico archivio AES-256-GCM. La password non viene mai salvata. Deve avere almeno 8 caratteri, una maiuscola, una minuscola, un numero e un simbolo speciale.
+    - Esecuzione Sicura (User Space): Il framework opera interamente all'interno dello spazio utente (~/). Non richiede e non deve essere eseguito con privilegi di root o sudo.
+    - Dry-Run di Default: Il restore parte in modalità simulata. Calcola i percorsi e mostra le modifiche proposte senza modificare il disco. Dal menu Restore è disponibile anche l'esecuzione reale.
+    - Avanzamento Sintetico: I moduli lunghi mostrano uno spinner nel terminale e terminano con conteggi aggregati invece di stampare ogni file copiato.
+      Requisiti di Sistema
+      Per consentire agli script Python di accedere a directory sensibili di macOS (come i Portachiavi) e alle unità esterne, è necessario concedere all'emulatore di terminale (es. Terminale.app, iTerm2 o il terminale integrato nell'IDE) i permessi appropriati.
 7. Aprire Impostazioni di Sistema > Privacy e Sicurezza > Accesso completo al disco.
 8. Attivare l'interruttore per abilitare l'accesso per l'applicazione terminale utilizzata.
    Utilizzo
@@ -136,36 +137,37 @@ checksums.json Hash crittografici per convalidare l'integrità dei file salvati.
 backup_report.md Report dettagliato conservato dentro l'archivio cifrato: contiene esiti dei moduli, inventory, azioni, dimensioni e timestamp di modifica. Non viene esposto in chiaro accanto all'archivio.
 YYYY-MM-DD_HH-MM_restore_YYYY-MM-DD_HH-MM.txt Report esterno generato dopo ogni restore completato o dry-run.
 Componenti Core
+
 - macrestore.py: Il punto di ingresso interattivo principale per Backup e Restore. Gli script legacy audit.py e restore.py restano disponibili per l'uso diretto o avanzato.
 - config.py: Intercetta le variabili d'ambiente impostate dalla CLI e definisce i percorsi assoluti per l'intero progetto.
 - audit/engine.py & restore/engine.py: I processori centrali. Caricano dinamicamente i plugin dalle directory modules/, isolano gli ambienti di esecuzione e gestiscono la mappatura delle directory (Context).
 - shared/: Librerie condivise utilizzate da entrambi i motori (inventory.py per il logging, encryption.py per la cifratura degli archivi, checksum.py per gli hash, verify.py per la validazione, report.py per i riepiloghi e plugin_loader.py).
-Elenco Moduli
-I moduli sono script indipendenti e specifici per dominio. La fase di Backup è composta da 19 moduli, mentre la fase di Restore da 16 moduli. Il modulo di backup `disk_usage` è opzionale ed escluso dalla scelta predefinita "tutti i moduli standard"; il suo report viene gestito da `system_lists` durante il restore. Il restore omette inoltre lo snapshot hardware (`system`).
-La fase di Restore utilizza due strategie di distribuzione distinte:
+  Elenco Moduli
+  I moduli sono script indipendenti e specifici per dominio. La fase di Backup è composta da 19 moduli, mentre la fase di Restore da 16 moduli. Il modulo di backup `disk_usage` è opzionale ed escluso dalla scelta predefinita "tutti i moduli standard"; il suo report viene gestito da `system_lists` durante il restore. Il restore omette inoltre lo snapshot hardware (`system`).
+  La fase di Restore utilizza due strategie di distribuzione distinte:
 - Iniezione Diretta: I file vengono inseriti direttamente nei percorsi di sistema originali di macOS.
 - Estrazione Sicura: I file che richiedono un'importazione manuale o l'installazione di software di terze parti (es. Database, VPN) vengono estratti in cartelle organizzate sulla ~/Desktop (Scrivania).
 - vmware.py: Registra i percorsi dei bundle VMware Fusion `.vmwarevm` e li verifica durante il restore. Non copia intenzionalmente i dischi virtuali: il bundle resta sul disco esterno.
-Sicurezza e Accessi
-Le directory temporanee di preparazione e restore sono nascoste per evitare l'accesso casuale e limitate all'utente corrente con permessi filesystem `700`. Non servono permessi speciali per usare la directory temporanea di sistema. L'Accesso completo al disco può comunque essere necessario per sorgenti protette come Portachiavi e dati delle applicazioni.
+  Sicurezza e Accessi
+  Le directory temporanee di preparazione e restore sono nascoste per evitare l'accesso casuale e limitate all'utente corrente con permessi filesystem `700`. Non servono permessi speciali per usare la directory temporanea di sistema. L'Accesso completo al disco può comunque essere necessario per sorgenti protette come Portachiavi e dati delle applicazioni.
 - password.py: Salva e inietta direttamente i Portachiavi macOS (login.keychain-db). Crea un backup pre-ripristino del portachiavi esistente per prevenire blocchi di accesso.
 - ssh.py: Salva e inietta direttamente chiavi pubbliche/private e configurazioni. Fondamentale: Applica dinamicamente permessi 700 su ~/.ssh e 600 sui file delle chiavi per soddisfare i requisiti di sicurezza di OpenSSH.
 - vpn.py: Estrae in modo sicuro i profili Tunnelblick (.tblk) e OpenVPN (.ovpn) sulla Scrivania per la re-importazione manuale.
-Sviluppo Web, Progetti e Database
+  Sviluppo Web, Progetti e Database
 - git.py: Salva e inietta il file .gitconfig globale.
 - git_ignored.py: Salva i file locali non tracciati (es. .env) ignorando node_modules o artefatti di build. Durante il ripristino, inietta direttamente l'intero albero sopra la directory home, inserendo i file segreti nelle rispettive cartelle dei repository Git.
 - mysql.py: Esegue il backup dei database locali (esclusi i DB di sistema) in archivi .sql.gz e li estrae in modo sicuro sulla Scrivania.
 - workbench.py: Salva e inietta connections.xml per ripristinare credenziali e host di MySQL Workbench.
 - node.py: Salva e inietta le configurazioni globali (.npmrc, .yarnrc) ed estrae liste JSON dei pacchetti installati globalmente.
-Sviluppo Mobile & IDE
-- mobile_dev.py: Inietta il debug.keystore Android e i Provisioning Profiles Xcode nei percorsi di sistema; estrae in sicurezza le chiavi .jks di produzione sulla Scrivania. Esegue il backup dei profili di configurazione leggeri degli AVD Android (~/.android/avd/*.ini e config.ini), dei cataloghi simulatori iOS (tramite xcrun simctl) e genera script e guide di ricostruzione (recreate_emulators.sh / recreate_emulators.md) direttamente all'interno dell'archivio cifrato di backup. Al ripristino, reinstalla le configurazioni AVD e posiziona lo script di ricreazione in ~/.android/.
+  Sviluppo Mobile & IDE
+- mobile_dev.py: Inietta il debug.keystore Android e i Provisioning Profiles Xcode nei percorsi di sistema; estrae in sicurezza le chiavi .jks di produzione sulla Scrivania. Esegue il backup dei profili di configurazione leggeri degli AVD Android (~/.android/avd/\*.ini e config.ini), dei cataloghi simulatori iOS (tramite xcrun simctl) e genera script e guide di ricostruzione (recreate_emulators.sh / recreate_emulators.md) direttamente all'interno dell'archivio cifrato di backup. Al ripristino, reinstalla le configurazioni AVD e posiziona lo script di ricreazione in ~/.android/.
 - antigravity.py: Inietta settings.json, scorciatoie da tastiera e snippet per IDE (VS Code, Trae). Estrae l'elenco delle estensioni (extensions.txt) sulla Scrivania.
-Browser & Remote Tools
+  Browser & Remote Tools
 - browser.py: Salva e inietta le configurazioni per Google Chrome e Arc Browser. Separa i database delle password crittografate dalle preferenze standard durante il backup, unendoli nuovamente in modo accurato durante il ripristino.
 - remote_tools.py: Salva e inietta chirurgicamente le directory di configurazione e le preferenze .plist per Termius, AnyDesk, TeamViewer e FileZilla.
-Produttività
+  Produttività
 - obsidian.py: Legge il registro di Obsidian per localizzare i Vault. Ne esegue il backup omettendo le pesanti cache Electron (Crashpad, GPUCache). Durante il ripristino, inietta le preferenze globali ed estrae i Vault sulla Scrivania.
-Sistema e Manutenzione
+  Sistema e Manutenzione
 - development.py: Salva e inietta i file di inizializzazione della shell (.zshrc).
 - system_lists.py (Solo Restore): Consolida l'output dei moduli di backup applications, homebrew e disk_usage. Genera una cartella sulla Scrivania contenente il Brewfile e gli elenchi testuali delle applicazioni per un rapido ripristino del sistema.
 
@@ -287,13 +289,13 @@ def restore(context):
 
 The restore context exposes these paths:
 
-| Context property | Purpose |
-| --- | --- |
-| `context.backup_dir` | Root of the selected backup |
-| `context.inventory_dir` | `inventory/` metadata |
-| `context.config_dir` | `backup_config/` text and configuration files |
-| `context.files_dir` | `files/` binary or larger files |
-| `context.dry_run` | `True` unless live execution is selected in the `macrestore.py` Restore menu |
+| Context property        | Purpose                                                                      |
+| ----------------------- | ---------------------------------------------------------------------------- |
+| `context.backup_dir`    | Root of the selected backup                                                  |
+| `context.inventory_dir` | `inventory/` metadata                                                        |
+| `context.config_dir`    | `backup_config/` text and configuration files                                |
+| `context.files_dir`     | `files/` binary or larger files                                              |
+| `context.dry_run`       | `True` unless live execution is selected in the `macrestore.py` Restore menu |
 
 For data that cannot be safely injected automatically, extract it to a clearly named Desktop folder and explain the manual next step. Never silently overwrite important existing data; create a `.pre-restore` copy when direct replacement is necessary.
 

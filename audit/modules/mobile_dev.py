@@ -118,9 +118,10 @@ def backup(context):
     # 4. iOS Simulators (simctl export)
     if shutil.which('xcrun'):
         cmd_result = run_command('xcrun simctl list --json')
-        if cmd_result['success'] and cmd_result['stdout']:
+        raw_stdout = cmd_result['stdout']
+        if cmd_result['success'] and isinstance(raw_stdout, str) and raw_stdout:
             try:
-                simctl_data = json.loads(cmd_result['stdout'])
+                simctl_data = json.loads(raw_stdout)
                 devices_by_runtime = simctl_data.get('devices', {})
                 sim_summary = []
 
