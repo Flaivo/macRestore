@@ -21,6 +21,7 @@ def restore_browser_data(context, browser_name, app_support_path):
         if context.dry_run:
             print(f'  [DRY-RUN] [{browser_name.upper()}] Would copy preferences to {dest_dir}')
         else:
+            context.protect_destination(dest_dir, f"Browsers/{browser_name}")
             dest_dir.mkdir(parents=True, exist_ok=True)
             shutil.copytree(browsers_source, dest_dir, dirs_exist_ok=True)
             print(f'  [OK] [{browser_name.upper()}] Preferences and profiles restored.')
@@ -31,6 +32,7 @@ def restore_browser_data(context, browser_name, app_support_path):
         if context.dry_run:
             print(f'  [DRY-RUN] [{browser_name.upper()}] Would copy Password databases to {dest_dir}')
         else:
+            context.protect_destination(dest_dir, f"Browsers/{browser_name}")
             dest_dir.mkdir(parents=True, exist_ok=True)
             shutil.copytree(passwords_source, dest_dir, dirs_exist_ok=True)
             print(f'  [OK] [{browser_name.upper()}] Password databases restored.')

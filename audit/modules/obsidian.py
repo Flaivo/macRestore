@@ -2,6 +2,7 @@ import json
 from pathlib import Path
 import shutil
 from shared.inventory import save_inventory
+from shared.filesystem import copy_tree_preserving_metadata
 
 PLUGIN = {
     "name": "obsidian",
@@ -14,12 +15,17 @@ PLUGIN = {
 def ignore_bloat(dir, contents):
     """Filtra le cartelle spazzatura di Electron e cache varie."""
     bloat_list = {
-        'Cache', 'Code Cache', 'Crashpad', 'GPUCache', 
-        'logs', 'Updates', 'Service Worker', 'Partitions', 'blob_storage',
-        'SingletonSocket', 'SingletonCookie', 'SingletonLock'
+        'Cache', 'Code Cache', 'Crashpad', 'GPUCache', 'DawnCache',
+        'DawnGraphiteCache', 'DawnWebGPUCache', 'SharedStorage', 'Trust Tokens',
+        'logs', 'Updates', 'Service Worker',
+        'Partitions', 'blob_storage', 'Session Storage', 'IndexedDB',
+        'Local Storage', 'WebStorage', 'VideoDecodeStats', 'shared_proto_db',
+        'Shared Dictionary', 'SingletonSocket', 'SingletonCookie',
+        'SingletonLock', 'Cookies', 'Cookies-journal', 'Network Persistent State',
+        'TransportSecurity', 'obsidian.log', 'obsidian-1.13.7.asar', '.DS_Store',
     }
     # Ritorna l'elenco degli elementi in 'contents' che fanno parte della bloat_list
-    return [item for item in contents if item in bloat_list]
+    return [item for item in contents if item in bloat_list or item.endswith(('-wal', '-shm', '-journal'))]
 
 def backup(context):
     result: dict = {"vaults_backed_up": []}
@@ -31,11 +37,10 @@ def backup(context):
     
     if app_support.exists():
         # Copia preferenze e plugin escludendo la spazzatura di Electron
-        shutil.copytree(
+        copy_tree_preserving_metadata(
             app_support, 
             config_dest / "app_support", 
             ignore=ignore_bloat, 
-            dirs_exist_ok=True
         )
         
         # Scova e copia i Vault fisici
@@ -48,7 +53,7 @@ def backup(context):
                         v_path = Path(v_data.get("path", ""))
                         if v_path.exists() and v_path.is_dir():
                             vault_dest = files_dest / "vaults" / v_path.name
-                            shutil.copytree(v_path, vault_dest, dirs_exist_ok=True)
+                            copy_tree_preserving_metadata(v_path, vault_dest)
                             result["vaults_backed_up"].append(v_path.name)
             except Exception as e:
                 result["error"] = str(e)

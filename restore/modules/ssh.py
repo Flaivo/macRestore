@@ -35,7 +35,7 @@ def restore(context):
                 
                 # Safety backup if something with the same name already exists
                 if dest_file.exists():
-                    shutil.copy2(dest_file, dest_dir / f"{file_path.name}.pre-restore")
+                    context.protect_destination(dest_file, f".ssh/{file_path.name}")
                 
                 shutil.copy2(file_path, dest_file)
                 os.chmod(dest_file, 0o600)

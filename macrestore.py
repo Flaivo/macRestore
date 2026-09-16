@@ -208,7 +208,10 @@ def _select_restore_modules(modules):
     print(" 0. Back")
     print("-" * 60)
     for index, module in enumerate(modules, 2):
-        print(f"{index:2d}. {module.PLUGIN.get('name', 'Unknown')}")
+        print(
+            f"{index:2d}. {module.PLUGIN.get('name', 'Unknown')} "
+            f"[{module.PLUGIN.get('restore_mode', 'manual')}]"
+        )
     choice = read_number("\nSelect a module or an action: ", len(modules) + 1)
     if choice == "0":
         return False
@@ -244,6 +247,13 @@ def _run_restore(backup_path):
         selected = _select_restore_modules(modules)
         if selected is False:
             return False
+        if not dry_run:
+            confirmation = input(
+                "LIVE restore will modify existing files. Type RESTORE to continue: "
+            )
+            if confirmation.strip() != "RESTORE":
+                print("Live restore cancelled.")
+                return False
         if selected is None:
             engine.run()
         else:

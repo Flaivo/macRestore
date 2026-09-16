@@ -2,6 +2,7 @@ from pathlib import Path
 import shutil
 
 from shared.inventory import save_inventory
+import re
 
 PLUGIN = {
     "name": "browsers",
@@ -123,6 +124,10 @@ def backup(context):
         
         # Arc usa dei file json nella root per salvare la struttura della sidebar
         for storable in arc_base.glob("Storable*.json"):
+            # Arc keeps timestamped historical snapshots beside the current
+            # files. Keep only the current canonical state for migration.
+            if re.search(r"\.\d{4}-\d{2}-\d{2}-", storable.name):
+                continue
             shutil.copy2(storable, arc_dest_base / storable.name)
             result["arc_special_files"].append(storable.name)
 

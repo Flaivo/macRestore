@@ -24,9 +24,16 @@ def restore(context):
     # REAL logic
     try:
         dest_dir.mkdir(parents=True, exist_ok=True)
+        guide_lines = ["# MySQL restore instructions", "", "Install and start MySQL before importing.", ""]
         for file_path in source_dir.iterdir():
             if file_path.is_file() and file_path.name != ".DS_Store":
                 shutil.copy2(file_path, dest_dir / file_path.name)
+                if file_path.name.endswith(".sql.gz"):
+                    database = file_path.name[:-7]
+                    guide_lines.append(
+                        f"- `{file_path.name}`: `gunzip -c '{file_path.name}' | mysql -u root -p {database}`"
+                    )
+        (dest_dir / "RESTORE_GUIDE.md").write_text("\n".join(guide_lines) + "\n", encoding="utf-8")
         print(f'  [OK] Database dumps successfully extracted to: {dest_dir}')
     except Exception as e:
         print(f'  [ERROR] Error restoring MySQL: {e}')

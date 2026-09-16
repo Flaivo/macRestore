@@ -24,6 +24,7 @@ def restore(context):
     try:
         user_src = src_dir / "User"
         if user_src.exists():
+            context.protect_destination(dest_dir, "VSCode/User")
             dest_dir.mkdir(parents=True, exist_ok=True)
             shutil.copytree(user_src, dest_dir, dirs_exist_ok=True)
             print('  [OK] IDE configurations (VS Code) restored.')

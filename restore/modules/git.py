@@ -26,9 +26,8 @@ def restore(context):
     # REAL logic
     try:
         if dest_file.exists():
-            backup_esistente = Path.home() / ".gitconfig.pre-restore"
-            shutil.copy2(dest_file, backup_esistente)
-            print(f'  [NOTE] Backup of existing .gitconfig created at {backup_esistente.name}')
+            saved = context.protect_destination(dest_file, ".gitconfig")
+            print(f'  [NOTE] Backup of existing .gitconfig created at {saved}')
 
         shutil.copy2(source_file, dest_file)
         print(f'  [OK] .gitconfig successfully restored to {dest_file}')

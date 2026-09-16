@@ -31,9 +31,8 @@ def restore(context):
     try:
         # If a file already exists, create a quick safety backup before overwriting
         if zshrc_dest.exists():
-            backup_existing = Path.home() / ".zshrc.pre-restore"
-            shutil.copy2(zshrc_dest, backup_existing)
-            print(f'  [NOTE] Backup of existing .zshrc created at {backup_existing.name}')
+            saved = context.protect_destination(zshrc_dest, ".zshrc")
+            print(f'  [NOTE] Backup of existing .zshrc created at {saved}')
 
         shutil.copy2(zshrc_source, zshrc_dest)
         print(f'  [OK] .zshrc successfully restored to {zshrc_dest}')

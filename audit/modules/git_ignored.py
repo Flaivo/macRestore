@@ -18,13 +18,22 @@ EXCLUDED_DIRS = {
     "node_modules", ".next", "build", "dist", "out", 
     "android", "ios", "Pods", ".expo", ".nuxt", 
     "coverage", "target", "vendor", ".svelte-kit", 
-    ".turbo", "__pycache__", ".vscode", "generated", ".prisma"
+    ".turbo", "__pycache__", ".vscode", "generated", ".prisma",
+    ".pytest_cache", ".pnpm-store", ".agent", ".clerk", ".trae",
+    ".cache", "cache", "logs", "tmp", "temp"
 }
 
 # File specifici inutili
 EXCLUDED_FILES = {
-    ".DS_Store"
+    ".DS_Store", "CACHEDIR.TAG", "lockfile", "package-lock.json",
 }
+
+def allowed_repo(repo):
+    configured = os.environ.get("MAC_RESTORE_GIT_IGNORED_PROJECTS", "").strip()
+    if not configured:
+        return True
+    names = {item.strip() for item in configured.split(",") if item.strip()}
+    return repo.name in names or str(repo.relative_to(Path.home())) in names
 
 def get_ignored_files(repo_path):
     """Interroga Git per farsi restituire l'elenco dei file ignorati."""
@@ -93,6 +102,8 @@ def backup(context):
     # 3. BACKUP SELETTIVO DEI FILE IGNORATI
     # ============================================================
     for repo in repos_found:
+        if not allowed_repo(repo):
+            continue
         ignored_files = get_ignored_files(repo)
         
         # Filtra i file scartando quelli nelle EXCLUDED_DIRS o che terminano con /

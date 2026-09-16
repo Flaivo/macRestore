@@ -1,6 +1,8 @@
 import getpass
+import os
 import shutil
 from datetime import datetime
+from pathlib import Path
 
 from shared.plugin_loader import PluginLoader
 from shared.filesystem import create_temporary_backup_directory
@@ -14,6 +16,8 @@ from shared.checksum import generate_checksums
 from shared.encryption import encrypt_backup_directory, validate_backup_password
 from shared.progress import Spinner
 from shared.report import create_backup_report, create_backup_summary
+from shared.restore_policy import restore_mode
+from shared.processes import running_applications
 
 
 class AuditEngine:
@@ -30,7 +34,7 @@ class AuditEngine:
         return self.loader.load_modules()
 
 
-    def run(self, selected=None):
+    def run(self, selected: list[str] | None = None) -> Path | None:
 
         self._active_plaintext_backup = None
 
@@ -61,17 +65,7 @@ class AuditEngine:
             self._active_plaintext_backup = None
 
 
-    def _run(self, selected=None):
-
-        backup_path = create_temporary_backup_directory()
-        self._active_plaintext_backup = backup_path
-
-        context = BackupContext(
-            backup_path
-        )
-
-        context.prepare()
-
+    def _run(self, selected: list[str] | None = None) -> Path | None:
 
         executed_modules = {}
 
@@ -81,6 +75,23 @@ class AuditEngine:
                 for module in self.list_modules()
                 if module.PLUGIN.get("default_enabled", True)
             ]
+
+        open_apps = running_applications()
+        if (
+            open_apps
+            and not os.environ.get("MAC_RESTORE_ALLOW_OPEN_APPS")
+            and any(name in selected for name in ("browsers", "browser", "obsidian", "remote_tools"))
+        ):
+            print("[ERROR] Applications open during backup: " + ", ".join(open_apps))
+            print("[ERROR] Close them before backing up browser or remote-tool data.")
+            print("[ERROR] Set MAC_RESTORE_ALLOW_OPEN_APPS=1 only if you explicitly accept inconsistent data.")
+            return None
+
+        backup_path = create_temporary_backup_directory()
+        self._active_plaintext_backup = backup_path
+
+        context = BackupContext(backup_path)
+        context.prepare()
 
 
         for module in self.list_modules():
@@ -121,10 +132,11 @@ class AuditEngine:
                         "has_restore",
                         False
                     ),
-                    "restore_items": module.PLUGIN.get(
-                        "restore_items",
-                        []
-                    ),
+                        "restore_items": module.PLUGIN.get(
+                            "restore_items",
+                            []
+                        ),
+                        "restore_mode": restore_mode(name),
                     "artifacts": context.artifacts.get(
                         name,
                         []
@@ -147,7 +159,8 @@ class AuditEngine:
                         "restore_items": module.PLUGIN.get(
                             "restore_items",
                             []
-                        )
+                        ),
+                        "restore_mode": restore_mode(name),
                     }
 
 

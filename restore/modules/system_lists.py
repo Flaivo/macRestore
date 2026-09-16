@@ -38,6 +38,17 @@ def restore(context):
         if disk_dir.exists():
             for file in disk_dir.iterdir():
                 shutil.copy2(file, dest_dir / file.name)
+
+        (dest_dir / "RESTORE_GUIDE.md").write_text(
+            "# Mac Restore guide\n\n"
+            "1. Install Homebrew, then run `brew bundle --file=Brewfile`.\n"
+            "2. Install applications listed in `applications.txt`.\n"
+            "3. Install App Store applications listed in `mas-apps.txt` if present.\n"
+            "4. Restore configuration modules after installing their applications.\n"
+            "5. Import VPN profiles and keychains manually after reviewing them.\n"
+            "6. Import MySQL dumps using the database guide.\n",
+            encoding="utf-8",
+        )
                 
         print(f'  [OK] Installation lists (App/Brew) saved to {dest_dir}')
         print("  [NOTE] Open the terminal, navigate to that folder and run 'brew bundle' to reinstall everything.")

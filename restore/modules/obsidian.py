@@ -28,11 +28,13 @@ def restore(context):
     # REAL logic
     try:
         if config_src.exists():
+            context.protect_destination(config_dest, "Obsidian/config")
             config_dest.mkdir(parents=True, exist_ok=True)
             shutil.copytree(config_src, config_dest, dirs_exist_ok=True)
             print('  [OK] Obsidian preferences restored.')
             
         if vaults_src.exists():
+            context.protect_destination(vaults_dest, "Obsidian/vaults")
             vaults_dest.mkdir(parents=True, exist_ok=True)
             shutil.copytree(vaults_src, vaults_dest, dirs_exist_ok=True)
             print(f'  [OK] Obsidian vaults extracted to {vaults_dest}')

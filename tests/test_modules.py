@@ -91,6 +91,7 @@ def test_audit_creates_external_text_summary(tmp_path, monkeypatch):
     )
 
     encrypted = audit_engine_module.AuditEngine().run(selected=["system"])
+    assert encrypted is not None
     report = encrypted.with_suffix(".txt")
 
     assert encrypted.exists()
@@ -255,6 +256,7 @@ def test_audit_mobile_dev_end_to_end_encrypted(tmp_path, monkeypatch):
     )
 
     encrypted = audit_engine_module.AuditEngine().run(selected=["mobile_dev"])
+    assert encrypted is not None
     assert encrypted.exists()
 
     with decrypted_backup(encrypted, "ValidPass1!") as decrypted:
@@ -262,7 +264,6 @@ def test_audit_mobile_dev_end_to_end_encrypted(tmp_path, monkeypatch):
         assert (decrypted / "inventory" / "mobile_dev.json").exists()
         assert (decrypted / "files" / "mobile_dev" / "recreate_emulators.sh").exists()
         assert (decrypted / "files" / "mobile_dev" / "recreate_emulators.md").exists()
-
 
 
 

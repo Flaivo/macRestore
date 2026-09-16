@@ -173,8 +173,8 @@ def create_backup_report(backup_path, manifest, report_name="backup_report.md"):
         "",
         "## Module summary",
         "",
-        "| Module | Result | Registered artifacts | Details |",
-        "|---|---|---:|---|",
+            "| Module | Result | Restore mode | Registered artifacts | Details |",
+            "|---|---|---|---:|---|",
     ]
 
     for name, result in modules.items():
@@ -183,6 +183,7 @@ def create_backup_report(backup_path, manifest, report_name="backup_report.md"):
         artifacts = len(result.get("artifacts", []))
         lines.append(
             f"| {_markdown_cell(name)} | **{_markdown_cell(status)}** | "
+            f"{_markdown_cell(result.get('restore_mode', 'manual'))} | "
             f"{artifacts} | {_markdown_cell(details)} |"
         )
 

@@ -2,6 +2,7 @@ from pathlib import Path
 import shutil
 
 from shared.inventory import save_inventory
+from shared.filesystem import copy_tree_preserving_metadata
 
 PLUGIN = {
     "name": "remote_tools",
@@ -55,13 +56,20 @@ def backup(context):
                 if p.is_dir():
                     # Evitiamo di copiare cartelle di cache o log pesanti
                     def ignore_caches(dir_path, contents):
-                        return [c for c in contents if "Cache" in c or "cache" in c or "Logs" in c]
+                        excluded = {
+                            "Cache", "Code Cache", "GPUCache", "Crashpad", "Logs",
+                            "logs", "cache", "session-logs", "thumbnails", "msg_thumbnails",
+                            "incoming", "lockfile", "*.lock", "IndexedDB", "Local Storage",
+                            "Session Storage", "sentry", "chat", "Cookies", "Network Persistent State",
+                            "TransportSecurity", ".DS_Store", ".updaterId", "window-state.json",
+                        }
+                        return [c for c in contents if c in excluded or c.endswith((".lock", ".trace", "-journal", "-wal", "-shm"))]
                         
                     dest_path = tool_dest_dir / p.name
                     if dest_path.exists():
                         shutil.rmtree(dest_path)
                     
-                    shutil.copytree(p, dest_path, ignore=ignore_caches)
+                    copy_tree_preserving_metadata(p, dest_path, ignore=ignore_caches)
                     tool_backed_up = True
                 else:
                     shutil.copy2(p, tool_dest_dir / p.name)

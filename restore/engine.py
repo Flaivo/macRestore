@@ -4,6 +4,9 @@ from pathlib import Path
 from shared.plugin_loader import PluginLoader
 from shared.progress import Spinner
 from shared.report import create_restore_report
+from shared.verify import verify_backup
+from shared.restore_policy import backup_existing
+from shared.processes import running_applications
 
 class RestoreContext:
     def __init__(self, backup_dir, dry_run=True):
@@ -14,6 +17,16 @@ class RestoreContext:
         self.inventory_dir = self.backup_dir / "inventory"
         self.config_dir = self.backup_dir / "backup_config"
         self.files_dir = self.backup_dir / "files"
+        self._protected_destinations = set()
+
+    def protect_destination(self, destination, label):
+        """Create one pre-restore copy for a destination in live mode."""
+        destination = Path(destination)
+        key = str(destination)
+        if self.dry_run or key in self._protected_destinations:
+            return None
+        self._protected_destinations.add(key)
+        return backup_existing(destination, label)
 
 class RestoreEngine:
 
@@ -30,6 +43,23 @@ class RestoreEngine:
     def run(self, selected=None):
         modules = self.list_modules()
 
+        integrity = verify_backup(self.context.backup_dir)
+        if "files" in integrity:
+            if integrity.get("valid"):
+                print("[OK] Backup integrity verified before restore.")
+            else:
+                print("[ERROR] Backup integrity verification failed. Restore aborted.")
+                if self.report_path:
+                    create_restore_report(
+                        self.report_path,
+                        self.context.backup_dir.name,
+                        self.context.dry_run,
+                        [{"name": "preflight", "status": "failed", "error": "Backup integrity verification failed"}],
+                    )
+                return []
+        else:
+            print("[WARNING] checksums.json not found; legacy backup integrity was not verified.")
+
         print("\n" + "=" * 60)
         print("\nMAC RESTORE - STARTING RESTORE PROCESS")
         print(f"Source: {self.context.backup_dir.name}")
@@ -40,6 +70,11 @@ class RestoreEngine:
             print("No files will actually be modified on the system.\n")
         else:
             print("WARNING: LIVE EXECUTION mode active.\n")
+
+        open_apps = running_applications()
+        if open_apps:
+            print("[WARNING] Applications open during restore: " + ", ".join(open_apps))
+            print("[WARNING] Close affected applications before live execution.\n")
 
         module_results = []
         for module in modules:

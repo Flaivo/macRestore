@@ -15,6 +15,7 @@ def restore_tool(context, tool_name, source_path, dest_path, is_file=False):
         return True
 
     try:
+        context.protect_destination(dest_path, f"remote_tools/{tool_name}")
         if is_file:
             dest_path.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(source_path, dest_path)

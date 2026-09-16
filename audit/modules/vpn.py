@@ -256,23 +256,16 @@ def backup(context):
         )
 
 
-        destination = (
-            destination_dir
-            / source.name
-        )
-
-
+        destination = destination_dir / source.name
+        # Different source folders frequently contain profiles with the same
+        # basename (for example server.ovpn). Never overwrite an earlier profile.
         if destination.exists():
-
-            if destination.is_dir():
-
-                shutil.rmtree(
-                    destination
-                )
-
-            else:
-
-                destination.unlink()
+            stem = source.stem
+            suffix = source.suffix
+            counter = 2
+            while destination.exists():
+                destination = destination_dir / f"{stem}__{counter}{suffix}"
+                counter += 1
 
 
         success = copy_profile(

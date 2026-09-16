@@ -24,6 +24,7 @@ def restore(context):
     # REAL logic
     try:
         dest_dir.mkdir(parents=True, exist_ok=True)
+        context.protect_destination(dest_file, "MySQL-Workbench/connections.xml")
         shutil.copy2(source_file, dest_file)
         print(f'  [OK] MySQL Workbench connections restored to {dest_dir}')
     except Exception as e:

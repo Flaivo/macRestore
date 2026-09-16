@@ -30,6 +30,17 @@ def copy_directory(
 
         return False
 
+
+def copy_tree_preserving_metadata(source, destination, ignore=None):
+    """Copy a tree while retaining modes, timestamps and macOS stat metadata."""
+    return shutil.copytree(
+        source,
+        destination,
+        ignore=ignore,
+        copy_function=shutil.copy2,
+        dirs_exist_ok=True,
+    )
+
 def create_backup_directory(base_path):
 
     timestamp = datetime.now().strftime(

@@ -26,9 +26,11 @@ def restore(context):
         restored_lists = 0
         for file in src_dir.iterdir():
             if file.name.startswith("."):
+                context.protect_destination(home_dir / file.name, f"node/{file.name}")
                 shutil.copy2(file, home_dir / file.name)
                 restored_hidden += 1
             else:
+                context.protect_destination(lists_dest / file.name, f"Install_Lists/{file.name}")
                 shutil.copy2(file, lists_dest / file.name)
                 restored_lists += 1
         print(

@@ -8,6 +8,8 @@ from restore.engine import RestoreEngine
 from shared.encryption import decrypted_backup, is_encrypted_backup
 from version import __version__
 from shared.input import read_number
+from shared.report import create_restore_report
+from datetime import datetime
 
 # Compute the absolute path to the default backups folder
 BASE_DIR = Path(__file__).resolve().parent
@@ -123,7 +125,8 @@ def select_modules(modules, is_dry_run):
     for idx, module in enumerate(modules, 1):
         name = module.PLUGIN.get("name", "Unknown")
         desc = module.PLUGIN.get("description", "")
-        print(f"{idx:2d}. {name.ljust(15)} : {desc}")
+        mode = module.PLUGIN.get("restore_mode", "manual")
+        print(f"{idx:2d}. {name.ljust(15)} [{mode}] : {desc}")
 
     print("=" * 55)
 
@@ -155,8 +158,18 @@ def select_modules(modules, is_dry_run):
     return selezionati_nomi
 
 
-def run_restore(backup_path, dry_run_mode):
-    engine = RestoreEngine(backup_path, dry_run=dry_run_mode)
+def run_restore(backup_path, dry_run_mode, report_base=None):
+    report_base = Path(report_base or backup_path)
+    report_path = report_base.parent / (
+        f"{report_base.stem}_restore_{datetime.now().strftime('%Y-%m-%d_%H-%M')}.txt"
+    )
+    duplicate = 1
+    while report_path.exists():
+        report_path = report_base.parent / (
+            f"{report_base.stem}_restore_{datetime.now().strftime('%Y-%m-%d_%H-%M')}-{duplicate}.txt"
+        )
+        duplicate += 1
+    engine = RestoreEngine(backup_path, dry_run=dry_run_mode, report_path=report_path)
     modules = engine.list_modules()
 
     if not modules:
@@ -164,6 +177,11 @@ def run_restore(backup_path, dry_run_mode):
         return
 
     selected_names = select_modules(modules, is_dry_run=dry_run_mode)
+    if not dry_run_mode:
+        answer = input("LIVE restore will modify files. Type RESTORE to continue: ")
+        if answer.strip() != "RESTORE":
+            print("Live restore cancelled.")
+            return
     engine.run(selected=selected_names)
 
 
@@ -200,7 +218,7 @@ def main():
         password = getpass.getpass("Backup password: ")
         try:
             with decrypted_backup(backup_path, password) as decrypted_path:
-                run_restore(decrypted_path, dry_run_mode)
+                run_restore(decrypted_path, dry_run_mode, report_base=backup_path)
         except (OSError, ValueError) as error:
             print(f"Cannot open the encrypted backup: {error}")
             sys.exit(1)

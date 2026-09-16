@@ -1,5 +1,6 @@
 import importlib
 import pkgutil
+from shared.restore_policy import restore_mode
 
 
 class PluginLoader:
@@ -25,6 +26,9 @@ class PluginLoader:
             )
 
             if hasattr(module, "PLUGIN"):
+                module.PLUGIN.setdefault(
+                    "restore_mode", restore_mode(module.PLUGIN.get("name", ""))
+                )
                 modules.append(module)
 
         return sorted(
