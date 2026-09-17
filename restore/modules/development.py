@@ -7,35 +7,34 @@ PLUGIN = {
 }
 
 def restore(context):
-    # Locate the backup file
     source_dir = context.config_dir / "development"
-    zshrc_source = source_dir / ".zshrc"
+    sources = sorted(
+        path for path in source_dir.iterdir()
+        if path.is_file() and path.name.startswith(".")
+    ) if source_dir.exists() else []
 
-    # Actual destination on the system
-    zshrc_dest = Path.home() / ".zshrc"
-
-    # 1. Check that the file exists in the backup
-    if not zshrc_source.exists():
-        print('  [SKIP] No .zshrc found in backup, skipping.')
+    if not sources:
+        print('  [SKIP] No shell configuration found in backup, skipping.')
         return
 
-    # 2. DRY-RUN logic (Simulation)
     if context.dry_run:
-        print(f'  [DRY-RUN] Would copy: {zshrc_source}')
-        print(f'  [DRY-RUN] To:         {zshrc_dest}')
-        if zshrc_dest.exists():
-            print('  [DRY-RUN] (The existing file would be overwritten)')
+        for source in sources:
+            destination = Path.home() / source.name
+            print(f'  [DRY-RUN] Would copy: {source}')
+            print(f'  [DRY-RUN] To:         {destination}')
+            if destination.exists():
+                print('  [DRY-RUN] (The existing file would be overwritten)')
         return
 
-    # 3. REAL logic (Execution)
     try:
-        # If a file already exists, create a quick safety backup before overwriting
-        if zshrc_dest.exists():
-            saved = context.protect_destination(zshrc_dest, ".zshrc")
-            print(f'  [NOTE] Backup of existing .zshrc created at {saved}')
-
-        shutil.copy2(zshrc_source, zshrc_dest)
-        print(f'  [OK] .zshrc successfully restored to {zshrc_dest}')
+        restored = 0
+        for source in sources:
+            destination = Path.home() / source.name
+            if destination.exists():
+                context.protect_destination(destination, source.name)
+            shutil.copy2(source, destination)
+            restored += 1
+        print(f'  [OK] Shell configuration restored: {restored} files.')
 
     except Exception as e:
-        print(f'  [ERROR] Error restoring .zshrc: {e}')
+        print(f'  [ERROR] Error restoring shell configuration: {e}')

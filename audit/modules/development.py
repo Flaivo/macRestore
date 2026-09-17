@@ -12,7 +12,8 @@ PLUGIN = {
     "requires_password": False,
     "has_restore": True,
     "restore_items": [
-        "config_files"
+        "config_files",
+        "shell_initialization"
     ]
 }
 
@@ -97,11 +98,12 @@ def backup(context):
 
 
     config_files = {
-
-        ".npmrc": Path.home() / ".npmrc",
-
-        ".zshrc": Path.home() / ".zshrc"
-
+        name: Path.home() / name
+        for name in [
+            ".npmrc", ".pnpmrc", ".yarnrc", ".yarnrc.yml", ".nvmrc",
+            ".zshrc", ".zprofile", ".zshenv", ".zsh_aliases",
+            ".bash_profile", ".bashrc", ".profile",
+        ]
     }
 
 

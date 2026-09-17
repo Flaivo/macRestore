@@ -1,12 +1,12 @@
 # Mac Restore — Backup & Recovery Framework
 
-Version: **1.0.5**
+Version: **1.0.6**
 
 ## English
 
 Mac Restore is a modular Python framework for creating a focused, encrypted backup of a macOS development workstation and restoring it after a migration or clean installation. It complements a full-system backup such as Time Machine: it preserves important configurations, credentials, project-local files, databases, SSH material, VPN profiles, browser data and development environments without copying an entire home directory or reproducible caches.
 
-The project is designed for user-space migration. Do not run it with `sudo` or as root.
+The project is designed for user-space migration. Do not run the Mac Restore application with `sudo` or as root. The generated printer helper is separate and opt-in; it may use `sudo lpadmin` because macOS protects the CUPS configuration.
 
 ### What is backed up
 
@@ -24,7 +24,7 @@ The standard flow discovers and records:
 - SSH keys/configuration with recorded permissions;
 - Tunnelblick and OpenVPN profiles;
 - MySQL Workbench connections;
-- system, application and VMware inventories.
+- system, application, printer and VMware inventories. Printer queues are recorded from CUPS so they can be recreated after drivers are installed.
 
 The optional `disk_usage` audit module is available for inventory purposes but is not part of the default standard selection. VMware is inventoried only: virtual machine bundles and virtual disks are intentionally not copied.
 
@@ -39,7 +39,7 @@ The optional `disk_usage` audit module is available for inventory purposes but i
 - Live restore requires explicit confirmation by typing `RESTORE`.
 - Before a live direct replacement, existing destinations are copied to `~/Desktop/MacRestore-PreRestore/<timestamp>/`.
 - Keychains are never overwritten automatically. They are extracted to `~/Desktop/MacRestore-Keychains/` for manual import.
-- Databases, production mobile keys, VPN profiles, application lists and Obsidian vaults are exported to named Desktop folders or guides when manual action is safer.
+- Databases, production mobile keys, VPN profiles, application lists and Obsidian vaults are exported to named Desktop folders or guides when manual action is safer. MySQL also receives a password-safe import script.
 
 ### Applications and consistency
 
@@ -107,12 +107,15 @@ python3 restore.py
 1. Install Python and the applications required by the selected modules.
 2. Mount or copy the verified encrypted backup and run a dry-run.
 3. Restore automatic configuration modules such as development, Git, Node, SSH and IDE settings.
-4. Restore project-local ignored files and inspect the resulting `.env` files carefully.
-5. Import databases using the generated instructions in `~/Desktop/Database_Restored/`.
-6. Import keychains manually from `~/Desktop/MacRestore-Keychains/`.
-7. Install or open the relevant VPN client and import profiles from `~/Desktop/VPN_Restored/`.
-8. Install listed applications/extensions and restore manual Desktop exports.
-9. Test SSH, Git, MySQL, VPN, browser profiles, development projects and mobile emulators before deleting older backups.
+4. Clone or update the tracked project repositories from their remote sources, then restore project-local ignored files and inspect the resulting `.env` files carefully.
+5. Install printer drivers/software when required, review `~/Desktop/Install_Lists/PRINTERS.md`, then optionally run `restore_printers.sh` and select only the required queues.
+6. Install MySQL Community Server for macOS ARM64/Apple Silicon and MySQL Workbench from the links in `~/Desktop/Install_Lists/APPLICATION_DOWNLOADS.md`.
+7. Import databases using `~/Desktop/Database_Restored/restore_mysql.sh` or the generated `RESTORE_GUIDE.md`. The script asks for the MySQL root password without saving it in the backup.
+8. Import keychains manually from `~/Desktop/MacRestore-Keychains/`.
+9. Install or open the relevant VPN client and import profiles from `~/Desktop/VPN_Restored/`.
+10. Run `~/Desktop/Install_Lists/BOOTSTRAP_MAC.sh` to coordinate Homebrew, Brewfile packages/casks, Node globals and IDE extensions when available.
+11. Install listed applications/extensions and restore manual Desktop exports.
+12. Test SSH, Git, printers, MySQL, VPN, browser profiles, development projects and mobile emulators before deleting older backups.
 
 ### Backup layout
 
@@ -129,6 +132,20 @@ YYYY-MM-DD_HH-MM.txt          non-sensitive summary beside the archive
 
 The restore report is written outside the archive as `YYYY-MM-DD_HH-MM_restore_YYYY-MM-DD_HH-MM.txt`. It records the mode, module results, skipped items, errors and planned or completed actions.
 
+### Generated helper files and download sources
+
+The MySQL restore module creates `~/Desktop/Database_Restored/restore_mysql.sh`. It checks that `mysql` is installed, asks for the root password without echoing it, creates missing database schemas, imports all `.sql.gz` dumps, and removes its temporary credential file through a shell trap. The password is never embedded in the backup or script. Review the dump list before running it and ensure that MySQL is installed and running.
+
+Android emulator restoration already provides `recreate_emulators.sh`. Application installation, browser extensions, VPN profiles and keychains remain guided/manual because they require software-specific choices, GUI authorization or security confirmation.
+
+The `system_lists` restore module also creates `~/Desktop/Install_Lists/APPLICATION_DOWNLOADS.md`. It lists third-party applications with their backed-up version and a curated vendor-maintained download page where available; macOS system applications are intentionally omitted because the operating system provides them. The file always includes the official pages for MySQL Community Server (macOS ARM64/Apple Silicon) and MySQL Workbench. Links point to download pages rather than fixed version files, so the latest compatible release can be selected after the migration.
+
+The same folder contains `BOOTSTRAP_MAC.sh`, which coordinates the available helpers: `INSTALL_COMMANDS.sh` interactively offers to install Homebrew and runs `brew bundle --file=Brewfile`; `restore_node_globals.sh` restores npm/pnpm global packages; and `install_ide_extensions.sh` installs the recorded VS Code-compatible extensions when the `code` command is available. This is the correct place for command-line tools such as `wget`: they are restored from the Brewfile rather than mixed into the application download list. `applications.txt` contains only applications to reinstall; `applications-full.txt` retains the complete original inventory for reference.
+
+The system inventory records CUPS printer queues with `lpstat -v`, `lpstat -p` and `lpstat -d`. When printers are present, `PRINTERS.md` and the interactive `restore_printers.sh` are placed in `~/Desktop/Install_Lists/`. The helper presents a numbered menu and processes only the queues selected by the user; it does not restore every printer automatically. For queue names containing Xerox, Zebra or Canon, it shows the corresponding official support/download page and can open it in the browser, then pauses so the driver can be installed before continuing. The helper uses `lpadmin`, may request the macOS administrator password, and requires the printer to be reachable. It uses the generic `everywhere` driver mode only as the queue recreation command; install/select the manufacturer driver manually when that mode is not suitable. Printer connection credentials are not reproduced in the generated command.
+
+`RESTORE_GUIDE.md` is the short parent guide for the whole migration. It gives the recommended order and a map of the Desktop folders/files, while the MySQL and VPN guides contain only their module-specific details.
+
 ### Modules and restore behavior
 
 | Module         | Backup                                                             | Restore behavior                                      |
@@ -136,19 +153,19 @@ The restore report is written outside the archive as `YYYY-MM-DD_HH-MM_restore_Y
 | `antigravity`  | IDE settings and extension list                                    | Settings injected; extensions listed for installation |
 | `applications` | Installed apps and casks                                           | Inventory exported by `system_lists`                  |
 | `browser`      | Chrome/Arc preferences, bookmarks, passwords and Arc special files | Direct copy; close browsers first                     |
-| `development`  | `.zshrc` and runtime inventory                                     | Direct copy with pre-restore protection               |
+| `development`  | Shell dotfiles and runtime inventory                              | Direct copy with pre-restore protection               |
 | `git`          | `.gitconfig`                                                       | Direct copy with pre-restore protection               |
-| `git_ignored`  | Selected ignored/local project files                               | Individual file restore; no full-home copy            |
+| `git_ignored`  | Git-ignored local project files only                               | Individual file restore; no clone, pull or full-home copy |
 | `homebrew`     | Brewfile                                                           | Brewfile exported for manual provisioning             |
 | `mobile_dev`   | Keystores, AVD config, simulator inventory                         | Safe restore plus emulator recreation instructions    |
-| `mysql`        | Compressed SQL dumps                                               | Extracted to Desktop; import manually                 |
+| `mysql`        | Compressed SQL dumps                                               | Extracted to Desktop with `RESTORE_GUIDE.md` and `restore_mysql.sh` |
 | `node`         | Node manager configuration and global package lists                | Config restore and package lists for manual install   |
 | `obsidian`     | Preferences and vaults without runtime caches                      | Preferences injected; vaults exported to Desktop      |
 | `passwords`    | Keychains and browser login databases                              | Keychains always extracted for manual import          |
 | `remote_tools` | Termius, FileZilla, AnyDesk and TeamViewer config                  | Direct copy with filtered caches/logs                 |
 | `ssh`          | Keys, known hosts and SSH files                                    | Direct copy with secure `~/.ssh` permissions          |
-| `system`       | Hardware/system inventory                                          | Inventory only                                        |
-| `system_lists` | —                                                                  | Creates application, Homebrew and disk-usage lists    |
+| `system`       | Hardware/system and CUPS printer inventory                         | Inventory only; printer queues are recreated by the generated helper |
+| `system_lists` | —                                                                  | Creates application, Homebrew, printer and disk-usage lists |
 | `vmware`       | VM inventory                                                       | Inventory only; no virtual disks copied               |
 | `vpn`          | Tunnelblick and OpenVPN profiles                                   | Profiles exported to Desktop for manual import        |
 | `workbench`    | MySQL Workbench connections                                        | Direct copy with pre-restore protection               |
@@ -171,7 +188,7 @@ New modules should include tests for discovery, missing sources, counts, errors 
 
 Mac Restore è un framework modulare Python per creare un backup mirato e cifrato di una workstation macOS e ripristinarla dopo una migrazione o una reinstallazione pulita. Integra un backup completo come Time Machine: conserva configurazioni importanti, credenziali, file locali dei progetti, database, materiale SSH, profili VPN, dati dei browser e ambienti di sviluppo senza copiare l'intera home directory né cache o dipendenze ricreabili.
 
-Il progetto è pensato per una migrazione nello spazio dell'utente. Non deve essere eseguito con `sudo` o come root.
+Il progetto è pensato per una migrazione nello spazio dell'utente. L'applicazione Mac Restore non deve essere eseguita con `sudo` o come root. Lo script stampanti generato è separato e facoltativo; può usare `sudo lpadmin` perché macOS protegge la configurazione CUPS.
 
 ### Cosa viene salvato
 
@@ -204,7 +221,7 @@ Il modulo opzionale `disk_usage` è disponibile per l'inventario ma non fa parte
 - L'esecuzione reale richiede la conferma esplicita digitando `RESTORE`.
 - Prima di una sostituzione reale, le destinazioni esistenti vengono copiate in `~/Desktop/MacRestore-PreRestore/<timestamp>/`.
 - I portachiavi non vengono mai sovrascritti automaticamente: vengono estratti in `~/Desktop/MacRestore-Keychains/` per l'importazione manuale.
-- Database, chiavi mobile di produzione, profili VPN, liste applicazioni e Vault Obsidian vengono esportati in cartelle o guide sulla Scrivania quando l'operazione manuale è più sicura.
+- Database, chiavi mobile di produzione, profili VPN, liste applicazioni e Vault Obsidian vengono esportati in cartelle o guide sulla Scrivania quando l'operazione manuale è più sicura. Per MySQL viene creato anche uno script di importazione senza password memorizzata.
 
 ### Applicazioni aperte e consistenza
 
@@ -272,16 +289,33 @@ python3 restore.py
 1. Installa Python e le applicazioni richieste dai moduli scelti.
 2. Collega o copia il backup cifrato verificato ed esegui un dry-run.
 3. Ripristina i moduli automatici: sviluppo, Git, Node, SSH e impostazioni IDE.
-4. Ripristina i file locali ignorati da Git e controlla con attenzione i file `.env`.
-5. Importa i database usando le istruzioni generate in `~/Desktop/Database_Restored/`.
-6. Importa manualmente i portachiavi da `~/Desktop/MacRestore-Keychains/`.
-7. Installa o apri il client VPN e importa i profili da `~/Desktop/VPN_Restored/`.
-8. Installa applicazioni/estensioni ed esegui le esportazioni manuali presenti sulla Scrivania.
-9. Prova SSH, Git, MySQL, VPN, browser, progetti e simulatori prima di eliminare i vecchi backup.
+4. Clona o aggiorna i repository tracciati dalla loro sorgente remota, poi ripristina i file locali ignorati da Git e controlla con attenzione i file `.env`.
+5. Installa i driver/software delle stampanti se necessari, controlla `~/Desktop/Install_Lists/PRINTERS.md` ed eventualmente esegui `restore_printers.sh`, selezionando solo le code desiderate.
+6. Installa MySQL Community Server per macOS ARM64/Apple Silicon e MySQL Workbench usando i link in `~/Desktop/Install_Lists/APPLICATION_DOWNLOADS.md`.
+7. Importa i database usando `~/Desktop/Database_Restored/restore_mysql.sh` oppure `RESTORE_GUIDE.md`. Lo script chiede la password root MySQL senza salvarla nel backup.
+8. Importa manualmente i portachiavi da `~/Desktop/MacRestore-Keychains/`.
+9. Installa o apri il client VPN e importa i profili da `~/Desktop/VPN_Restored/`.
+10. Esegui `~/Desktop/Install_Lists/BOOTSTRAP_MAC.sh` per coordinare Homebrew, pacchetti/cask del Brewfile, pacchetti globali Node ed estensioni IDE quando disponibili.
+11. Installa applicazioni/estensioni ed esegui le esportazioni manuali presenti sulla Scrivania.
+12. Prova SSH, Git, stampanti, MySQL, VPN, browser, progetti e simulatori prima di eliminare i vecchi backup.
 
 ### Moduli e comportamento del restore
 
-Il comportamento dei moduli è quello descritto nella tabella inglese: i moduli automatici ripristinano configurazioni protette da una copia pre-restore, i moduli rischiosi operano su file locali selezionati, i moduli manuali producono esportazioni e guide, mentre i moduli inventory generano elenchi senza modificare il sistema.
+Il comportamento dei moduli è quello descritto nella tabella inglese: i moduli automatici ripristinano configurazioni protette da una copia pre-restore, i moduli rischiosi operano su file locali selezionati, i moduli manuali producono esportazioni e guide, mentre i moduli inventory generano elenchi senza modificare il sistema. In particolare `git_ignored` non esegue `git clone` o `git pull`, non ripristina il codice tracciato e non salva i file non tracciati che non risultano ignorati da Git.
+
+Il sistema salva anche l'inventario delle code di stampa CUPS tramite `lpstat -v`, `lpstat -p` e `lpstat -d`. Se sono presenti stampanti, in `~/Desktop/Install_Lists/` vengono creati `PRINTERS.md` e lo script interattivo `restore_printers.sh`. Lo script mostra un menu numerato e ripristina soltanto le code selezionate: non reinstalla automaticamente tutte le stampanti. Per i nomi delle code che contengono Xerox, Zebra o Canon mostra la rispettiva pagina ufficiale di supporto/download, offre l'apertura nel browser e si mette in pausa per consentire l'installazione del driver prima di continuare. Il comando usa `lpadmin`, può chiedere la password di amministratore macOS e richiede che le stampanti siano raggiungibili. La modalità driver generica è `everywhere` solo per ricreare la coda; se non è adatta, il driver va selezionato manualmente. Eventuali credenziali contenute nell'URI non vengono riprodotte nello script.
+
+### File di supporto e fonti di download generati
+
+Il modulo MySQL crea `~/Desktop/Database_Restored/restore_mysql.sh`. Lo script controlla che `mysql` sia installato, richiede la password root senza mostrarla a video, crea gli schemi mancanti, importa tutti i dump `.sql.gz` e rimuove il file temporaneo delle credenziali tramite una trap della shell. La password non viene mai inserita nel backup o nello script. Controlla l'elenco dei dump prima di eseguirlo e assicurati che MySQL sia installato e avviato.
+
+Il ripristino degli emulatori Android dispone già di `recreate_emulators.sh`. Installazione applicazioni, estensioni browser, profili VPN e portachiavi restano guidati/manuali perché richiedono scelte specifiche, autorizzazioni grafiche o conferme di sicurezza.
+
+Il modulo `system_lists` crea anche `~/Desktop/Install_Lists/APPLICATION_DOWNLOADS.md`. Il file elenca le applicazioni di terze parti con la versione del backup e, quando disponibile, il link alla pagina ufficiale del produttore; le app di base di macOS vengono escluse perché fornite dal sistema operativo. Sono sempre presenti le pagine ufficiali per MySQL Community Server (macOS ARM64/Apple Silicon) e MySQL Workbench. I link portano alle pagine di download, non a file con versione fissa, così dopo la migrazione si può scegliere l'ultima release compatibile. Nella stessa cartella sono presenti anche `PRINTERS.md` e `restore_printers.sh` quando il backup contiene code di stampa.
+
+Nella stessa cartella viene creato `BOOTSTRAP_MAC.sh`, che coordina gli script disponibili: `INSTALL_COMMANDS.sh` propone interattivamente l'installer ufficiale Homebrew e poi esegue `brew bundle --file=Brewfile`; `restore_node_globals.sh` ripristina i pacchetti globali npm/pnpm; `install_ide_extensions.sh` installa le estensioni compatibili con VS Code quando il comando `code` è disponibile. Questo è il punto corretto per strumenti da terminale come `wget`: vengono ripristinati dal Brewfile e non confusi con le applicazioni da scaricare. `applications.txt` contiene solo le app da reinstallare; `applications-full.txt` conserva l'inventario completo originale come riferimento.
+
+`RESTORE_GUIDE.md` è la guida padre breve dell'intera migrazione: indica l'ordine consigliato e la funzione delle cartelle/file sulla Scrivania. Le guide MySQL e VPN contengono soltanto i dettagli specifici dei rispettivi moduli.
 
 ### Sviluppo e test
 

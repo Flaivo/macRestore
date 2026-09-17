@@ -25,7 +25,8 @@ def backup(context):
 
     data: dict = {
         "installed": False,
-        "brew_path": brew_path
+        "brew_path": brew_path,
+        "services": []
     }
 
 
@@ -54,6 +55,14 @@ def backup(context):
 
 
     data["version"] = result["stdout"]
+
+    services = run("brew services list")
+    if services["success"]:
+        services_file = context.config / "homebrew" / "services.txt"
+        services_file.parent.mkdir(parents=True, exist_ok=True)
+        services_file.write_text(services["output"] + "\n", encoding="utf-8")
+        context.register_artifact(services_file)
+        data["services"] = services["output"].splitlines()
 
 
 

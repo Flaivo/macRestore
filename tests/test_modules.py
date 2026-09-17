@@ -5,6 +5,7 @@ from audit.engine import AuditEngine
 from shared.filesystem import create_temporary_backup_directory
 import stat
 import json
+import subprocess
 import audit.engine as audit_engine_module
 from shared.manifest import create_manifest
 from shared.report import create_backup_report
@@ -35,6 +36,30 @@ def test_vmware_inventory_does_not_copy_virtual_disk(tmp_path):
 
 def test_disk_usage_is_optional_for_default_backup_selection():
     assert disk_usage_plugin["default_enabled"] is False
+
+
+def test_system_printer_inventory_parses_cups_output(monkeypatch):
+    import audit.modules.system as system_audit
+
+    outputs = {
+        "lpstat -v": "device for Office Printer: ipps://printer.local/ipp/print\n",
+        "lpstat -p": "printer Office Printer is idle. enabled since Tue 16 Sep 2026\n",
+        "lpstat -l -p": "printer Office Printer is idle.\n\tInterface: Xerox VersaLink C405\n",
+        "lpstat -d": "system default destination: Office Printer\n",
+    }
+    monkeypatch.setattr(
+        system_audit,
+        "run",
+        lambda command: {"stdout": outputs[command], "success": True},
+    )
+
+    result = system_audit._printer_inventory()
+
+    assert result["default_printer"] == "Office Printer"
+    assert result["printers"][0]["name"] == "Office Printer"
+    assert result["printers"][0]["device_uri"] == "ipps://printer.local/ipp/print"
+    assert result["printers"][0]["is_default"] is True
+    assert result["printers"][0]["interface"] == "Xerox VersaLink C405"
 
 
 def test_interrupted_backup_cleanup_removes_plaintext_directory(tmp_path):
@@ -116,6 +141,137 @@ def test_restore_dry_run_creates_report(tmp_path):
     content = report.read_text(encoding="utf-8")
     assert "DRY-RUN (no files changed)" in content
     assert "browser" in content
+
+
+def test_mysql_restore_generates_secure_import_script(tmp_path, monkeypatch):
+    import restore.modules.mysql as mysql_restore
+    from restore.engine import RestoreContext
+    from pathlib import Path
+
+    fake_home = tmp_path / "home"
+    source = tmp_path / "backup" / "files" / "mysql"
+    source.mkdir(parents=True)
+    (source / "example.sql.gz").write_bytes(b"compressed dump")
+    monkeypatch.setattr(Path, "home", lambda: fake_home)
+
+    mysql_restore.restore(RestoreContext(tmp_path / "backup", dry_run=False))
+
+    output = fake_home / "Desktop" / "Database_Restored"
+    script = output / "restore_mysql.sh"
+    assert script.exists()
+    assert stat.S_IMODE(script.stat().st_mode) == 0o700
+    content = script.read_text(encoding="utf-8")
+    assert "CREATE DATABASE IF NOT EXISTS example;" in content
+    assert '"$SCRIPT_DIR"/example.sql.gz' in content
+    assert "MYSQL_ROOT_PASSWORD" in content
+    assert "password=" in content
+    assert "compressed dump" not in content
+    syntax = subprocess.run(["sh", "-n", str(script)], capture_output=True, text=True)
+    assert syntax.returncode == 0, syntax.stderr
+
+
+def test_system_lists_generates_application_download_sources(tmp_path, monkeypatch):
+    import restore.modules.system_lists as system_lists_restore
+    from restore.engine import RestoreContext
+    from pathlib import Path
+
+    fake_home = tmp_path / "home"
+    backup = tmp_path / "backup"
+    (backup / "backup_config" / "applications").mkdir(parents=True)
+    (backup / "backup_config" / "applications" / "applications.txt").write_text(
+        "MySQLWorkbench 8.0.43.CE\nSystem Settings 1.0\n", encoding="utf-8"
+    )
+    (backup / "backup_config" / "homebrew").mkdir(parents=True)
+    (backup / "backup_config" / "homebrew" / "Brewfile").write_text(
+        'brew "wget"\n', encoding="utf-8"
+    )
+    (backup / "inventory").mkdir()
+    (backup / "inventory" / "applications.json").write_text(
+        json.dumps({
+            "data": {
+                "installed_apps": [
+                    {"name": "MySQLWorkbench", "version": "8.0.43.CE"},
+                    {"name": "System Settings", "version": "1.0"},
+                    {"name": "Unknown Tool", "version": "2.0"},
+                ],
+                "brew_casks": ["zulu@17"],
+            }
+        }),
+        encoding="utf-8",
+    )
+    (backup / "inventory" / "system.json").write_text(
+        json.dumps({
+            "data": {
+                "printers": {
+                    "default_printer": "Office Printer",
+                    "printers": [{
+                        "name": "Office Printer",
+                        "device_uri": "ipps://printer.local/ipp/print",
+                        "status": "idle. enabled",
+                        "is_default": True,
+                    }, {
+                        "name": "Zebra ZD421",
+                        "device_uri": "ipp://zebra.local/ipp/print",
+                        "status": "idle. enabled",
+                        "is_default": False,
+                    }, {
+                        "name": "Canon Office",
+                        "device_uri": "ipp://canon.local/ipp/print",
+                        "status": "idle. enabled",
+                        "is_default": False,
+                    }, {
+                        "name": "Xerox Office",
+                        "device_uri": "ipp://xerox.local/ipp/print",
+                        "status": "idle. enabled",
+                        "is_default": False,
+                    }],
+                }
+            }
+        }),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(Path, "home", lambda: fake_home)
+
+    system_lists_restore.restore(RestoreContext(backup, dry_run=False))
+
+    output = fake_home / "Desktop" / "Install_Lists" / "APPLICATION_DOWNLOADS.md"
+    content = output.read_text(encoding="utf-8")
+    assert "https://dev.mysql.com/downloads/mysql/" in content
+    assert "https://dev.mysql.com/downloads/workbench/" in content
+    assert "System Settings" not in content
+    assert "Unknown Tool" in content
+    assert "zulu@17" in content
+
+    printer_guide = output.parent / "PRINTERS.md"
+    printer_script = output.parent / "restore_printers.sh"
+    assert "Office Printer" in printer_guide.read_text(encoding="utf-8")
+    assert printer_script.exists()
+    assert stat.S_IMODE(printer_script.stat().st_mode) == 0o700
+    printer_syntax = subprocess.run(["sh", "-n", str(printer_script)], capture_output=True, text=True)
+    assert printer_syntax.returncode == 0, printer_syntax.stderr
+    assert "lpadmin" in printer_script.read_text(encoding="utf-8")
+    printer_script_content = printer_script.read_text(encoding="utf-8")
+    assert "https://www.zebra.com/us/en/support-downloads/printers.html" in printer_script_content
+    assert "https://www.usa.canon.com/support/software-and-drivers" in printer_script_content
+    assert "https://www.support.xerox.com/en-us" in printer_script_content
+    assert "Select a queue (one at a time)" in printer_script_content
+
+    parent_guide = output.parent / "RESTORE_GUIDE.md"
+    guide_content = parent_guide.read_text(encoding="utf-8")
+    assert "does not clone repositories or restore tracked source code" in guide_content
+    assert "Reinstall project dependencies" in guide_content
+
+    install_list = output.parent / "applications.txt"
+    full_list = output.parent / "applications-full.txt"
+    assert "MySQLWorkbench 8.0.43.CE" in install_list.read_text(encoding="utf-8")
+    assert "System Settings" not in install_list.read_text(encoding="utf-8")
+    assert "System Settings" in full_list.read_text(encoding="utf-8")
+
+    commands = output.parent / "INSTALL_COMMANDS.sh"
+    assert commands.exists()
+    assert stat.S_IMODE(commands.stat().st_mode) == 0o700
+    syntax = subprocess.run(["sh", "-n", str(commands)], capture_output=True, text=True)
+    assert syntax.returncode == 0, syntax.stderr
 
 
 def test_mobile_dev_avd_backup_and_restore(tmp_path, monkeypatch):
@@ -264,6 +420,3 @@ def test_audit_mobile_dev_end_to_end_encrypted(tmp_path, monkeypatch):
         assert (decrypted / "inventory" / "mobile_dev.json").exists()
         assert (decrypted / "files" / "mobile_dev" / "recreate_emulators.sh").exists()
         assert (decrypted / "files" / "mobile_dev" / "recreate_emulators.md").exists()
-
-
-
